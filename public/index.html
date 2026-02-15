@@ -272,6 +272,19 @@
             border-left-color: #78716c;
             color: #44403c;
         }
+        .alert-link {
+            color: inherit;
+            text-decoration: none;
+            display: block;
+        }
+        .alert-link:hover {
+            text-decoration: underline;
+        }
+        .alert-link::after {
+            content: ' ↗';
+            font-size: 0.7rem;
+            opacity: 0.5;
+        }
 
         /* Annotated column */
         .annotated-col {
@@ -701,6 +714,55 @@ const OFFICE_TIMEZONES = {
     'BOU': 'America/Denver',
 };
 let currentOffice = 'LOX';
+
+// Office → state for alerts API
+const OFFICE_STATES = {
+    'LOX': 'CA', 'SGX': 'CA', 'HNX': 'CA', 'MTR': 'CA',
+    'OKX': 'NY', 'PHI': 'PA', 'BOX': 'MA', 'LWX': 'VA',
+    'MFL': 'FL', 'FFC': 'GA',
+    'LOT': 'IL', 'HGX': 'TX', 'FWD': 'TX', 'EWX': 'TX',
+    'PSR': 'AZ', 'BOU': 'CO',
+    'SEW': 'WA', 'PQR': 'OR', 'VEF': 'NV',
+};
+
+// Office → sender name fragment for matching alerts
+const OFFICE_SENDER = {
+    'LOX': 'Los Angeles', 'SGX': 'San Diego', 'HNX': 'Hanford', 'MTR': 'San Francisco',
+    'OKX': 'New York', 'PHI': 'Mount Holly', 'BOX': 'Boston', 'LWX': 'Baltimore',
+    'MFL': 'Miami', 'FFC': 'Peachtree',
+    'LOT': 'Chicago', 'HGX': 'Houston', 'FWD': 'Fort Worth', 'EWX': 'San Antonio',
+    'PSR': 'Phoenix', 'BOU': 'Denver',
+    'SEW': 'Seattle', 'PQR': 'Portland', 'VEF': 'Las Vegas',
+};
+
+// Fetch live alerts and return map of event name → alert URL
+async function fetchAlerts(office) {
+    const state = OFFICE_STATES[office];
+    if (!state) return {};
+    try {
+        const res = await fetch(`https://api.weather.gov/alerts/active?area=${state}`, {
+            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
+        });
+        if (!res.ok) return {};
+        const data = await res.json();
+        const senderMatch = OFFICE_SENDER[office] || '';
+        const alertMap = {};
+        for (const f of (data.features || [])) {
+            const p = f.properties;
+            // Match alerts from this office
+            if (senderMatch && !(p.senderName || '').includes(senderMatch)) continue;
+            const event = p.event;
+            if (!alertMap[event]) {
+                // Build detail URL from alert ID
+                const oid = (f.id || '').split('/').pop();
+                alertMap[event] = `https://alerts.weather.gov/#?id=${oid}`;
+            }
+        }
+        return alertMap;
+    } catch { return {}; }
+}
+
+let currentAlerts = {};
 
 // ─── Section parsing ───────────────────────────────────────────────
 const SECTION_NAMES = {
@@ -1142,7 +1204,7 @@ function displayConfidence(fullText) {
 }
 
 // ─── Format Active Alerts as a clean list ───────────────────────────
-function formatAlerts(text) {
+function formatAlerts(text, alertMap) {
     // Split on alert types and format as list items
     let t = text;
     // Strip zone codes, product codes, state/marine prefixes
@@ -1171,7 +1233,17 @@ function formatAlerts(text) {
         if (/warning/i.test(item)) cls = 'alert-warning';
         else if (/watch/i.test(item)) cls = 'alert-watch';
         else if (/statement/i.test(item)) cls = 'alert-statement';
-        return `<li class="${cls}">${item}</li>`;
+        // Try to find a matching alert URL
+        let url = '';
+        if (alertMap) {
+            for (const [event, link] of Object.entries(alertMap)) {
+                if (item.toLowerCase().includes(event.toLowerCase())) { url = link; break; }
+            }
+        }
+        const content = url
+            ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="alert-link">${item}</a>`
+            : item;
+        return `<li class="${cls}">${content}</li>`;
     });
 
     return `<ul class="alert-list">${items.join('')}</ul>`;
@@ -1201,8 +1273,8 @@ function render(sections) {
     sectionsEl.innerHTML = sections.map(s => {
         let plainHtml;
         if (s.key === 'Active Alerts') {
-            // Format alerts as a clean bullet list
-            plainHtml = formatAlerts(s.text);
+            // Format alerts as a clean bullet list with links
+            plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
             plainHtml = translateToPlainEnglish(s.text);
         }
@@ -1283,7 +1355,7 @@ async function fetchAFD(office) {
     }
 }
 
-function renderAFD(prodData, office) {
+async function renderAFD(prodData, office) {
     const sectionsEl = document.getElementById('sections');
 
     // Update raw link
@@ -1315,7 +1387,25 @@ function renderAFD(prodData, office) {
     // Extract and display confidence
     displayConfidence(prodData.productText);
 
+    // Fetch live alerts for linking (non-blocking — render first, update after)
+    currentAlerts = {};
     render(sections);
+
+    // Then fetch alerts and re-render the alerts section with links
+    fetchAlerts(office).then(alertMap => {
+        currentAlerts = alertMap;
+        // Re-render just the alerts section if we got links
+        if (Object.keys(alertMap).length > 0) {
+            const alertSection = sections.find(s => s.key === 'Active Alerts');
+            if (alertSection) {
+                const el = document.getElementById('section-active-alerts');
+                if (el) {
+                    const plainCol = el.querySelector('.plain-col');
+                    if (plainCol) plainCol.innerHTML = formatAlerts(alertSection.text, alertMap);
+                }
+            }
+        }
+    });
 }
 
 // ─── Init ───────────────────────────────────────────────────────────
