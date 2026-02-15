@@ -156,6 +156,30 @@
         .plain-col p {
             margin-bottom: 1rem;
         }
+        .plain-col .sub-header {
+            font-family: var(--sans);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 1.5rem 0 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .plain-col .sub-header:first-child {
+            margin-top: 0;
+        }
+        .plain-col .alert-list {
+            list-style: none;
+            padding: 0;
+        }
+        .plain-col .alert-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        .plain-col .alert-list li:last-child {
+            border-bottom: none;
+        }
 
         /* Annotated column */
         .annotated-col {
@@ -545,6 +569,8 @@ const SECTION_NAMES = {
     'MARINE': 'Marine',
     'BEACHES': 'Beaches',
     'FIRE WEATHER': 'Fire Weather',
+    'LOX WATCHES/WARNINGS/ADVISORIES': 'Active Alerts',
+    'WATCHES/WARNINGS/ADVISORIES': 'Active Alerts',
 };
 
 function parseSections(text) {
@@ -556,8 +582,10 @@ function parseSections(text) {
     let forecaster = '';
 
     for (const line of lines) {
-        // Check for section headers: .SYNOPSIS..., .SHORT TERM..., etc.
-        const headerMatch = line.match(/^\.([A-Z\s\/]+?)\.{2,3}/);
+        // Check for section headers: .SYNOPSIS..., .SHORT TERM (TDY-TUE)..., .LOX WATCHES/WARNINGS/ADVISORIES...
+        // Try with office prefix first (3-letter like LOX, SGX)
+        const headerMatch = line.match(/^\.(?:LOX|SGX|HNX|VEF|MTR|SEW|PQR|OKX)\s+([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/)
+            || line.match(/^\.([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/);
         if (headerMatch) {
             if (currentKey) {
                 sections.push({ key: currentKey, text: currentLines.join('\n').trim() });
@@ -608,12 +636,34 @@ function parseSections(text) {
 function translateToPlainEnglish(text) {
     let t = text;
 
-    // Remove NWS formatting artifacts
-    t = t.replace(/\.{3,}/g, '... ');
-    t = t.replace(/\s{2,}/g, ' ');
+    // Remove NWS timestamps like "15/913 AM.", "15/935 AM.", "15/1801Z.", "15/1002 AM."
+    t = t.replace(/\d{2}\/\d{3,4}\s*(?:AM|PM|Z)\.?\s*/gi, '');
 
-    // Expand common abbreviations (case-insensitive where appropriate)
+    // Remove NWS product code references and "see the CFWLOX..." sentences
+    t = t.replace(/,?\s*see\s+the\s+[A-Z]{3,12}\s+(?:and\s+[A-Z]{3,12}\s+)?products?\s+for\s+more\s+details\.?/gi, '.');
+    t = t.replace(/\b(?:See\s+)?(?:Lax|Cfw|Srf|Npw|Mww|Wsw|Ffa)[a-z]{2,8}\b\.?/gi, '');
+
+    // Remove zone number lists (e.g., "for zones 38-344-345-353...")
+    t = t.replace(/for\s+zones?\s+[\d\->]+/gi, '');
+
+    // Remove raw NWS product references in parens, and empty parens
+    t = t.replace(/\(See\s+[A-Za-z]+\)/gi, '');
+    t = t.replace(/\(\s*\)/g, '');
+
+    // Convert ***Header*** to sub-section markers (before collapsing whitespace)
+    t = t.replace(/\*{3}\s*([^*]+?)\s*\*{3}/g, '\n\n§§§$1§§§\n\n');
+
+    // Remove embedded sub-section headers like ".SHORT TERM (TDY-TUE)..." that leak through
+    t = t.replace(/\.(?:SHORT|LONG|NEAR)\s+TERM\s*\([^)]*\)\.\s*/gi, '');
+
+    // Remove NWS formatting artifacts
+    t = t.replace(/\.{3,}/g, '. ');
+    // Collapse runs of spaces (but preserve newlines for paragraph splitting)
+    t = t.replace(/[ \t]{2,}/g, ' ');
+
+    // Expand abbreviations
     const abbrevs = [
+        // General weather abbreviations
         [/\bchc\b/gi, 'chance'],
         [/\bcsts\b/gi, 'coasts'],
         [/\bvlys\b/gi, 'valleys'],
@@ -637,56 +687,76 @@ function translateToPlainEnglish(text) {
         [/\bdevel\b/gi, 'develop'],
         [/\bdvlpg\b/gi, 'developing'],
         [/\bwrn\b/gi, 'western'],
-        [/\bern\b/gi, 'eastern'],
-        [/\bnrn\b/gi, 'northern'],
         [/\bsrn\b/gi, 'southern'],
+        [/\bnrn\b/gi, 'northern'],
         [/\bcntrl\b/gi, 'central'],
         [/\bfcst\b/gi, 'forecast'],
-        [/\bTSTMS?\b/g, 'thunderstorms'],
-        [/\btstms?\b/g, 'thunderstorms'],
+        [/\bblo\b/gi, 'below'],
+        [/\babv\b/gi, 'above'],
+        [/\bxtrm\b/gi, 'extreme'],
+        [/\bposs\b/gi, 'possible'],
+        [/\bprob\b/gi, 'probable'],
+
+        // County/region abbreviations (California-specific)
+        [/\bSLO\b/g, 'San Luis Obispo'],
+        [/\bSBA\b/g, 'Santa Barbara'],
+        [/\bVTA\b/g, 'Ventura'],
+        [/\bLA\b/g, 'Los Angeles'],
+
+        // Storm & dynamics
+        [/\bTSTMS?\b/gi, 'thunderstorms'],
         [/\bSFC\b/g, 'surface'],
         [/\bsfc\b/g, 'surface'],
         [/\btrof\b/gi, 'trough'],
         [/\bPWATs?\b/g, 'precipitable water'],
-        [/\bQPF\b/g, 'rainfall forecast'],
+        [/\bQPF\b/g, 'expected rainfall'],
         [/\bPoPs?\b/gi, 'chance of rain'],
         [/\bCAPE\b/g, 'storm energy'],
         [/\bCIN\b/g, 'convective cap'],
         [/\bRH\b/g, 'humidity'],
         [/\bSLP\b/g, 'sea level pressure'],
+
+        // Models → friendly names
         [/\bNBM\b/g, 'the blend-of-models forecast'],
         [/\bHRRR\b/g, 'the high-res rapid-refresh model'],
         [/\bGFS\b/g, 'the American global model'],
         [/\bECMWF\b/g, 'the European model'],
         [/\bNAM\b/g, 'the regional model'],
+        [/\bhi\s+res\b/gi, 'high-resolution'],
         [/\bclimo\b/gi, 'the historical average'],
         [/\bdiurnal\b/gi, 'daily'],
         [/\bnocturnal\b/gi, 'nighttime'],
 
         // Aviation
         [/\bMVFR\b/g, 'marginal visual flying conditions'],
-        [/\bIFR\b/g, 'instrument-only flying conditions'],
         [/\bLIFR\b/g, 'very low visibility flying conditions'],
+        [/\bIFR\b/g, 'instrument-only flying conditions'],
         [/\bVFR\b/g, 'good visual flying conditions'],
-        [/\bTAF\b/g, 'airport forecast'],
+        [/\bTAFs?\b/g, 'airport forecasts'],
         [/\bGDP\b/g, 'ground delay program'],
-        [/\bCIG\b/gi, 'ceiling'],
-        [/\bCIGS\b/gi, 'ceilings'],
+        [/\bCIGS?\b/gi, 'ceilings'],
         [/\bVSBY\b/gi, 'visibility'],
+        [/\bCLR\b/g, 'clear skies'],
+        [/\bAGL\b/g, 'above ground'],
+        [/\bMSL\b/g, 'above sea level'],
+        [/\bFL\b/g, 'flight level'],
+
+        // Sky conditions with optional height numbers: BKN015 → broken clouds at 1,500 ft
+        [/\bBKN(\d{3})\b/g, (_, h) => `broken clouds at ${parseInt(h)*100} ft`],
+        [/\bOVC(\d{3})\b/g, (_, h) => `overcast at ${parseInt(h)*100} ft`],
+        [/\bSCT(\d{3})\b/g, (_, h) => `scattered clouds at ${parseInt(h)*100} ft`],
+        [/\bFEW(\d{3})\b/g, (_, h) => `few clouds at ${parseInt(h)*100} ft`],
         [/\bBKN\b/g, 'broken clouds'],
         [/\bOVC\b/g, 'overcast'],
         [/\bSCT\b/g, 'scattered clouds'],
         [/\bFEW\b/g, 'few clouds'],
-        [/\bCLR\b/g, 'clear'],
-        [/\bAGL\b/g, 'above ground level'],
-        [/\bMSL\b/g, 'above sea level'],
 
         // Marine
         [/\bSCA\b/g, 'small craft advisory'],
+        [/\bGALE\b/g, 'gale warning'],
         [/\bKTS\b/gi, 'knots'],
         [/\bkt\b/gi, 'knot'],
         [/\bNM\b/g, 'nautical miles'],
-        [/\bswell\b/gi, 'ocean swell'],
 
         // Airport codes to names
         [/\bKLAX\b/g, 'LAX'],
@@ -699,45 +769,72 @@ function translateToPlainEnglish(text) {
         [/\bKOXR\b/g, 'Oxnard'],
         [/\bKLGB\b/g, 'Long Beach'],
         [/\bKSAN\b/g, 'San Diego'],
+        [/\bKPMD\b/g, 'Palmdale'],
+        [/\bKWJF\b/g, 'Lancaster'],
 
-        // Misc
+        // Phenomena
         [/\bAR\b/g, 'atmospheric river'],
         [/\bIVT\b/g, 'moisture transport'],
         [/\bPDS\b/g, 'particularly dangerous'],
+        [/\bSWE\b/g, 'snow water content'],
     ];
 
     for (const [pat, rep] of abbrevs) {
         t = t.replace(pat, rep);
     }
 
-    // Convert time references: 18Z → 10 AM PST
-    t = t.replace(/\b(\d{2})Z\b/g, (_, h) => {
-        const utc = parseInt(h);
+    // Convert Zulu time references: 18Z → 10 AM PST, also handle 1734Z
+    t = t.replace(/\b(\d{2,4})Z\b/g, (_, h) => {
+        const utc = parseInt(h.length <= 2 ? h : h.substring(0, 2));
         let pst = (utc - 8 + 24) % 24;
         const ampm = pst >= 12 ? 'PM' : 'AM';
         const hr12 = pst === 0 ? 12 : pst > 12 ? pst - 12 : pst;
         return `${hr12} ${ampm} PST`;
     });
 
-    // Clean up pressure level references
-    t = t.replace(/(\d{3,4})\s*mb/g, '$1 mb level');
+    // Clean up geopotential heights: "541 dam" → "a 541-dam"
+    t = t.replace(/(\d{3})\s*dam\b/g, '$1-decameter');
 
-    // Convert consecutive caps words (except common ones) to sentence case
-    // Only if the segment is 5+ chars to avoid mangling abbreviations
+    // Clean up pressure level references
+    t = t.replace(/(\d{3,4})\s*mb\b/g, '$1 mb level');
+
+    // Convert long ALL CAPS stretches (5+ chars) to sentence case (skip known terms)
     t = t.replace(/\b([A-Z]{5,})\b/g, (m) => {
-        if (GLOSSARY[m]) return m; // keep known terms
+        if (GLOSSARY[m]) return m;
         return m.charAt(0) + m.slice(1).toLowerCase();
     });
 
-    // Break into paragraphs on double newline or section markers
-    t = t.replace(/\n\s*\n/g, '\n\n');
+    // Remove "ern" that got left as standalone (from "eastern" abbrev collision with words ending in "ern")
+    // Actually, let's be more careful — only expand \bern\b when it's standalone
+    t = t.replace(/\bern\b/gi, 'eastern');
 
-    // Clean up extra spaces
-    t = t.replace(/\s{2,}/g, ' ').trim();
+    // Clean up artifacts from stripped content
+    t = t.replace(/\.\s*\.\s*/g, '. ');       // ". ." → "."
+    t = t.replace(/\s{2,}/g, ' ');
+    t = t.replace(/^\.\s*/gm, '');
+    t = t.replace(/\bCA\.\s*/g, '');            // Strip state prefix "CA."
+    t = t.replace(/\bPZ\.\s*/g, '');            // Strip marine zone prefix "PZ."
+    t = t.trim();
 
-    // Split into paragraphs
-    const paras = t.split(/\n\n+/).filter(p => p.trim());
-    return paras.map(p => `<p>${p.trim()}</p>`).join('');
+    // Split into blocks on double newlines
+    const blocks = t.split(/\n\s*\n+/).filter(b => b.trim());
+
+    let html = '';
+    for (const block of blocks) {
+        const trimmed = block.trim();
+        // Check for sub-section header marker
+        const subMatch = trimmed.match(/§§§\s*(.+?)\s*§§§\s*([\s\S]*)/);
+        if (subMatch) {
+            const title = subMatch[1].trim();
+            const body = subMatch[2].trim();
+            html += `<h4 class="sub-header">${title}</h4>`;
+            if (body) html += `<p>${body}</p>`;
+        } else if (!trimmed.match(/^§§§/)) {
+            // Skip orphaned markers, render normal paragraphs
+            html += `<p>${trimmed.replace(/\n/g, ' ')}</p>`;
+        }
+    }
+    return html;
 }
 
 // ─── Annotated text with jargon highlights ──────────────────────────
@@ -774,6 +871,38 @@ function extractTakeaway(sections) {
     return translateToPlainEnglish(takeaway).replace(/<\/?p>/g, '');
 }
 
+// ─── Format Active Alerts as a clean list ───────────────────────────
+function formatAlerts(text) {
+    // Split on alert types and format as list items
+    let t = text;
+    // Strip zone codes, product codes, state/marine prefixes
+    t = t.replace(/for\s+zones?\s+[\d\->]+/gi, '');
+    t = t.replace(/\(See\s+[A-Za-z]+\)/gi, '');
+    t = t.replace(/\(\s*\)/g, '');
+    t = t.replace(/\bCA\s*\.{1,3}\s*/g, '');
+    t = t.replace(/\bPZ\s*\.{1,3}\s*/g, '');
+    t = t.replace(/\b(?:Lax|Cfw|Srf|Npw|Mww|Wsw|Ffa)[a-z]{2,8}\b\.?/gi, '');
+    t = t.replace(/\.\s*\.\s*/g, '. ');
+    t = t.replace(/\s{2,}/g, ' ').trim();
+
+    // Split on known alert types to create individual items
+    const alertPattern = /((?:High Wind Watch|Wind Advisory|Flood Watch|High Surf Advisory|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado Watch|Tornado Warning|Severe Thunderstorm (?:Watch|Warning)|Flash Flood Warning|Blizzard Warning|Ice Storm Warning|Freeze Warning|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning)[^.]*\.?)/gi;
+
+    const matches = t.match(alertPattern);
+    if (!matches || matches.length === 0) {
+        return `<p>${t}</p>`;
+    }
+
+    const items = matches.map(m => {
+        let item = m.trim().replace(/\.\s*$/, '').replace(/^\.\s*/, '').trim();
+        // Capitalize first letter
+        item = item.charAt(0).toUpperCase() + item.slice(1);
+        return `<li>${item}</li>`;
+    });
+
+    return `<ul class="alert-list">${items.join('')}</ul>`;
+}
+
 // ─── Render ─────────────────────────────────────────────────────────
 function render(sections) {
     const sectionsEl = document.getElementById('sections');
@@ -794,21 +923,29 @@ function render(sections) {
     ).join('');
 
     // Sections
-    sectionsEl.innerHTML = sections.map(s => `
+    sectionsEl.innerHTML = sections.map(s => {
+        let plainHtml;
+        if (s.key === 'Active Alerts') {
+            // Format alerts as a clean bullet list
+            plainHtml = formatAlerts(s.text);
+        } else {
+            plainHtml = translateToPlainEnglish(s.text);
+        }
+        return `
         <div class="forecast-section" id="section-${s.key.replace(/\s/g, '-')}">
             <div class="section-title">${s.key}</div>
             <div class="columns">
                 <div>
                     <div class="col-label">Plain English</div>
-                    <div class="plain-col">${translateToPlainEnglish(s.text)}</div>
+                    <div class="plain-col">${plainHtml}</div>
                 </div>
                 <div>
                     <div class="col-label">Original + Annotations</div>
                     <div class="annotated-col">${annotateText(s.text)}</div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 // ─── Fetch AFD ──────────────────────────────────────────────────────
