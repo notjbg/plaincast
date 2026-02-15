@@ -61,12 +61,32 @@
             margin-top: 0.25rem;
         }
         .explainer {
-            font-family: var(--sans);
-            font-size: 0.85rem;
-            line-height: 1.6;
-            color: var(--text-light);
             margin-top: 0.75rem;
             max-width: 680px;
+        }
+        .explainer summary {
+            font-family: var(--sans);
+            font-size: 0.8rem;
+            color: var(--text-light);
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            list-style: none;
+        }
+        .explainer summary::-webkit-details-marker { display: none; }
+        .explainer summary::before {
+            content: '+ ';
+            font-weight: 600;
+        }
+        .explainer[open] summary::before {
+            content: '− ';
+        }
+        .explainer p {
+            font-family: var(--sans);
+            font-size: 0.85rem;
+            line-height: 1.65;
+            color: var(--text-light);
+            margin-top: 0.5rem;
+            font-style: italic;
         }
 
         /* Key Takeaway */
@@ -313,7 +333,10 @@
         </select>
     </div>
     <div class="issue-time" id="issue-time"></div>
-    <p class="explainer">Area Forecast Discussions are the real forecasts — written 3–4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast translates them into plain English, side by side with the original.</p>
+    <details class="explainer">
+        <summary>What is this?</summary>
+        <p>Area Forecast Discussions are the real forecasts — written 3–4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast translates them into plain English, side by side with the original.</p>
+    </details>
 </div>
 
 <div class="takeaway" id="takeaway-container" style="display:none">
