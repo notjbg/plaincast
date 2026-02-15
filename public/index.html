@@ -345,14 +345,25 @@
     <div class="header-row">
         <h1>Plaincast</h1>
         <select id="office-select">
-            <option value="LOX">Los Angeles / Oxnard (LOX)</option>
+            <option value="LOX">Los Angeles (LOX)</option>
+            <option value="OKX">New York (OKX)</option>
+            <option value="LOT">Chicago (LOT)</option>
+            <option value="HGX">Houston (HGX)</option>
+            <option value="PSR">Phoenix (PSR)</option>
+            <option value="PHI">Philadelphia (PHI)</option>
+            <option value="FWD">Dallas / Fort Worth (FWD)</option>
+            <option value="EWX">San Antonio (EWX)</option>
             <option value="SGX">San Diego (SGX)</option>
-            <option value="HNX">Hanford (HNX)</option>
-            <option value="VEF">Las Vegas (VEF)</option>
             <option value="MTR">San Francisco (MTR)</option>
+            <option value="MFL">Miami (MFL)</option>
+            <option value="FFC">Atlanta (FFC)</option>
+            <option value="LWX">Washington, DC (LWX)</option>
+            <option value="BOX">Boston (BOX)</option>
+            <option value="BOU">Denver (BOU)</option>
             <option value="SEW">Seattle (SEW)</option>
             <option value="PQR">Portland (PQR)</option>
-            <option value="OKX">New York (OKX)</option>
+            <option value="VEF">Las Vegas (VEF)</option>
+            <option value="HNX">Central CA / Hanford (HNX)</option>
         </select>
     </div>
     <div class="issue-time" id="issue-time"></div>
@@ -672,11 +683,22 @@ const OFFICE_TIMEZONES = {
     'LOX': 'America/Los_Angeles',
     'SGX': 'America/Los_Angeles',
     'HNX': 'America/Los_Angeles',
-    'VEF': 'America/Los_Angeles',
     'MTR': 'America/Los_Angeles',
     'SEW': 'America/Los_Angeles',
     'PQR': 'America/Los_Angeles',
+    'VEF': 'America/Los_Angeles',
     'OKX': 'America/New_York',
+    'PHI': 'America/New_York',
+    'BOX': 'America/New_York',
+    'MFL': 'America/New_York',
+    'FFC': 'America/New_York',
+    'LWX': 'America/New_York',
+    'LOT': 'America/Chicago',
+    'HGX': 'America/Chicago',
+    'FWD': 'America/Chicago',
+    'EWX': 'America/Chicago',
+    'PSR': 'America/Phoenix',
+    'BOU': 'America/Denver',
 };
 let currentOffice = 'LOX';
 
@@ -707,7 +729,7 @@ function parseSections(text) {
     for (const line of lines) {
         // Check for section headers: .SYNOPSIS..., .SHORT TERM (TDY-TUE)..., .LOX WATCHES/WARNINGS/ADVISORIES...
         // Try with office prefix first (3-letter like LOX, SGX)
-        const headerMatch = line.match(/^\.(?:LOX|SGX|HNX|VEF|MTR|SEW|PQR|OKX)\s+([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/)
+        const headerMatch = line.match(/^\.(?:LOX|SGX|HNX|VEF|MTR|SEW|PQR|OKX|LOT|HGX|PSR|PHI|FWD|EWX|MFL|FFC|LWX|BOX|BOU)\s+([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/)
             || line.match(/^\.([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/);
         if (headerMatch) {
             if (currentKey) {
