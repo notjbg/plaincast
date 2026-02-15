@@ -827,13 +827,14 @@ async function fetchAFD(office) {
         if (!latest) throw new Error('No AFD found');
 
         // Fetch the actual product
-        const prodRes = await fetch(latest.id || latest['@id'], {
+        const prodUrl = latest['@id'] || `https://api.weather.gov/products/${latest.id}`;
+        const prodRes = await fetch(prodUrl, {
             headers: { 'User-Agent': 'ForecastDecoded/1.0 (jonahberg.com)' }
         });
         const prodData = await prodRes.json();
 
         // Update raw link
-        document.getElementById('raw-link').href = latest.id || latest['@id'];
+        document.getElementById('raw-link').href = prodUrl;
 
         // Parse issue time
         const issueTime = new Date(prodData.issuanceTime);
