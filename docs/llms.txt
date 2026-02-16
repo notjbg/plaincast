@@ -1,0 +1,28 @@
+# Plaincast
+
+> NWS Area Forecast Discussions decoded into plain English using AI
+
+Plaincast is a free web application at https://plaincast.live that translates National Weather Service Area Forecast Discussions (AFDs) into plain English using Anthropic's Claude AI.
+
+## What it does
+- Fetches the latest Area Forecast Discussion from the NWS API for any of 19 supported offices
+- Uses Claude (Haiku) to summarize each section into natural, readable prose
+- Displays the AI summary side-by-side with the original annotated forecast
+- Highlights 150+ meteorological jargon terms with hover/tap tooltip definitions
+- Shows forecaster confidence level based on language analysis
+- Displays active weather alerts with full detail modals
+
+## Supported NWS Offices
+Los Angeles (LOX), New York (OKX), Chicago (LOT), Houston (HGX), Phoenix (PSR), Philadelphia (PHI), Dallas/Fort Worth (FWD), San Antonio (EWX), San Diego (SGX), San Francisco (MTR), Miami (MFL), Atlanta (FFC), Washington DC (LWX), Boston (BOX), Denver (BOU), Seattle (SEW), Portland (PQR), Las Vegas (VEF), Central California/Hanford (HNX)
+
+## Technical Details
+- Single-file vanilla HTML/CSS/JS app (~1,800 lines)
+- No frameworks, no build step, zero dependencies
+- NWS API (api.weather.gov) for forecast data, no API key needed
+- Vercel serverless function for Claude AI translation with caching
+- Data sourced entirely from the National Weather Service
+
+## Links
+- Website: https://plaincast.live
+- GitHub: https://github.com/notjbg/plaincast
+- Author: Jonah Berg (https://jonahberg.com)
