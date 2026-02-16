@@ -71,7 +71,7 @@ Rules:
         if (!response.ok) {
             const err = await response.text();
             console.error('Anthropic API error:', response.status, err);
-            return res.status(502).json({ error: 'Translation service error' });
+            return res.status(502).json({ error: 'Translation service error', status: response.status, detail: err.substring(0, 200) });
         }
 
         const data = await response.json();
