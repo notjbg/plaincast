@@ -591,7 +591,7 @@
     <div class="issue-time" id="issue-time"></div>
     <details class="explainer">
         <summary>What is this?</summary>
-        <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast translates them into plain English, side by side with the original.</p>
+        <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
     </details>
 </div>
 
@@ -612,13 +612,6 @@
     </div>
 </div>
 
-<div class="ai-toggle">
-    <button class="ai-toggle-btn" id="ai-toggle" aria-label="Toggle AI-enhanced translation">
-        ✨ AI Translation
-    </button>
-    <span class="ai-toggle-label" id="ai-toggle-label">Regex mode (instant)</span>
-</div>
-
 <nav class="section-nav" id="section-nav"></nav>
 
 <div class="sections" id="sections">
@@ -627,6 +620,7 @@
 
 <div class="footer">
     <span>Data: <a href="https://www.weather.gov" target="_blank" rel="noopener noreferrer">NWS <span id="footer-office">LOX</span></a></span>
+    <span>Summaries: <a href="https://www.anthropic.com" target="_blank" rel="noopener noreferrer">Claude by Anthropic</a></span>
     <a href="" id="raw-link" target="_blank" rel="noopener noreferrer">View raw AFD</a>
     <a href="https://github.com/notjbg/plaincast" target="_blank" rel="noopener noreferrer">GitHub</a>
     <span style="margin-left:auto">Built by <a href="https://github.com/notjbg" target="_blank" rel="noopener noreferrer">Jonah Berg</a></span>
@@ -1624,23 +1618,24 @@ function render(sections) {
         `<a href="#section-${safeId(s.key)}" aria-label="Jump to ${s.key} section">${s.key}</a>`
     ).join('');
 
-    // Store sections for AI re-translation
+    // Store sections for AI translation
     currentSections = sections;
 
-    // Sections
+    // Render sections with regex first (instant), then upgrade with AI
     sectionsEl.innerHTML = sections.map(s => {
         let plainHtml;
         if (s.key === 'Active Alerts') {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
-            plainHtml = translateToPlainEnglish(s.text);
+            // Show loading spinner initially
+            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-light);font-family:var(--sans);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
         }
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
             <div class="section-title">${s.key}</div>
             <div class="columns">
                 <div>
-                    <div class="col-label">Plain English</div>
+                    <div class="col-label">Summary · Powered by Claude</div>
                     <div class="plain-col">${plainHtml}</div>
                 </div>
                 <div>
@@ -1650,6 +1645,21 @@ function render(sections) {
             </div>
         </div>`;
     }).join('');
+
+    // Fire off AI translations for all non-alert sections
+    for (const s of sections) {
+        if (s.key === 'Active Alerts') continue;
+        const el = document.getElementById(`section-${safeId(s.key)}`);
+        if (!el) continue;
+        const plainCol = el.querySelector('.plain-col');
+        fetchAITranslation(s.text, s.key, currentOffice).then(html => {
+            plainCol.innerHTML = html;
+        }).catch(err => {
+            console.warn('AI translation failed for', s.key, err);
+            // Fall back to regex
+            plainCol.innerHTML = translateToPlainEnglish(s.text);
+        });
+    }
 }
 
 // ─── Fetch AFD ──────────────────────────────────────────────────────
@@ -1772,39 +1782,9 @@ async function renderAFD(prodData, office) {
     });
 }
 
-// ─── AI Toggle ──────────────────────────────────────────────────────
-document.getElementById('ai-toggle').addEventListener('click', async function() {
-    aiMode = !aiMode;
-    const btn = this;
-    const label = document.getElementById('ai-toggle-label');
-
-    if (aiMode) {
-        btn.classList.add('active');
-        btn.innerHTML = '✨ AI Translation';
-        label.textContent = 'AI mode (Claude Haiku)';
-        // Translate all non-alert sections
-        const sectionEls = document.querySelectorAll('.forecast-section');
-        for (const el of sectionEls) {
-            const key = el.dataset.sectionKey;
-            if (key === 'Active Alerts') continue;
-            const section = currentSections.find(s => s.key === key);
-            if (section) translateSectionAI(el, section.text, key);
-        }
-    } else {
-        btn.classList.remove('active');
-        btn.innerHTML = '✨ AI Translation';
-        label.textContent = 'Regex mode (instant)';
-        // Revert all sections
-        const sectionEls = document.querySelectorAll('.forecast-section');
-        for (const el of sectionEls) {
-            revertSectionToRegex(el);
-        }
-    }
-});
-
 // ─── Init ───────────────────────────────────────────────────────────
 const officeSelect = document.getElementById('office-select');
-officeSelect.addEventListener('change', () => { aiMode = false; document.getElementById('ai-toggle').classList.remove('active'); document.getElementById('ai-toggle-label').textContent = 'Regex mode (instant)'; fetchAFD(officeSelect.value); });
+officeSelect.addEventListener('change', () => fetchAFD(officeSelect.value));
 fetchAFD(officeSelect.value);
 
 // Auto-update "X minutes ago" every 60 seconds
