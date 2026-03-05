@@ -2139,14 +2139,20 @@ fetchAFD(officeSelect.value);
     function isDark() { return document.documentElement.classList.contains('dark'); }
     function updateIcon() { toggle.textContent = isDark() ? '🌙' : '☀️'; }
     updateIcon();
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
     toggle.addEventListener('click', () => {
         const dark = !isDark();
         document.documentElement.classList.toggle('dark', dark);
-        localStorage.setItem('theme', dark ? 'dark' : 'light');
+        // If toggling back to match system preference, clear override so we follow the OS again
+        if (dark === mq.matches) {
+            localStorage.removeItem('theme');
+        } else {
+            localStorage.setItem('theme', dark ? 'dark' : 'light');
+        }
         updateIcon();
     });
-    // Listen for system preference changes when no manual override
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    // Follow system preference changes when no manual override is stored
+    mq.addEventListener('change', (e) => {
         if (!localStorage.getItem('theme')) {
             document.documentElement.classList.toggle('dark', e.matches);
             updateIcon();
