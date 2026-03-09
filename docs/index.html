@@ -12,6 +12,10 @@
     <meta name="google-site-verification" content="IdNCtGpFPAc0ZPT6T41Z-KgfP-AzHr7qfAn-7asX96Y">
     <link rel="canonical" href="https://plaincast.live">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <script defer src="/_vercel/insights/script.js"></script>
     <script>
       // Apply theme before paint to prevent flash
@@ -699,6 +703,65 @@
             color: var(--text);
         }
 
+        /* Share button */
+        .share-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            color: var(--text-light);
+            transition: border-color 0.15s, color 0.15s;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .share-btn:hover {
+            border-color: var(--text-light);
+            color: var(--text);
+        }
+        .share-toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text);
+            color: var(--bg);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-family: var(--sans);
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 200;
+        }
+        .share-toast.show { opacity: 1; }
+
+        /* Text-to-speech button */
+        .tts-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.3rem 0.7rem;
+            margin-top: 0.75rem;
+            font-family: var(--sans);
+            font-size: 0.78rem;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .tts-btn:hover { border-color: var(--text-light); color: var(--text); }
+        .tts-btn.speaking { border-color: var(--accent, #2563eb); color: var(--accent, #2563eb); }
+
         /* ─── Dark mode ─── */
         .dark {
             --text: #e5e5e5;
@@ -785,6 +848,9 @@
     <div class="header-row">
         <h1>Plaincast</h1>
         <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">☀️</button>
+        <button class="share-btn" id="share-btn" title="Share this forecast" aria-label="Share forecast">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12V14H12V12"/><path d="M8 10V2"/><path d="M5 5L8 2L11 5"/></svg>
+        </button>
         <select id="office-select">
             <optgroup label="Northeast">
                 <option value="OKX">New York (OKX)</option>
@@ -2016,6 +2082,12 @@ function render(sections) {
             try {
                 const html = await fetchAITranslation(s.text, s.key, currentOffice);
                 plainCol.innerHTML = html;
+                if ('speechSynthesis' in window) {
+                    const ttsBtn = document.createElement('button');
+                    ttsBtn.className = 'tts-btn';
+                    ttsBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5L4 5H1v6h3l4 3.5V1.5zM11 5.5a3.5 3.5 0 010 5M13 3.5a6.5 6.5 0 010 9"/></svg> <span>Listen</span>';
+                    plainCol.appendChild(ttsBtn);
+                }
             } catch (err) {
                 console.warn('AI translation failed for', s.key, err);
                 plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-light);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
@@ -2175,6 +2247,14 @@ function updateTitle(office) {
 
 officeSelect.addEventListener('change', () => {
     const office = officeSelect.value;
+    // Stop any active speech
+    if ('speechSynthesis' in window && speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        document.querySelectorAll('.tts-btn.speaking').forEach(b => {
+            b.classList.remove('speaking');
+            b.querySelector('span').textContent = 'Listen';
+        });
+    }
     // Update URL and title without reload
     const url = new URL(window.location);
     url.searchParams.set('office', office);
@@ -2230,6 +2310,78 @@ setInterval(() => {
     const el = document.getElementById('issue-time');
     if (el) el.textContent = el.textContent.replace(/ - \d+.*$/, ` - ${timeAgo(issueTimeDate)}`);
 }, 60000);
+
+// ─── Share button ────────────────────────────────────────────────────
+(function() {
+    const shareBtn = document.getElementById('share-btn');
+    const toast = document.getElementById('share-toast');
+    shareBtn.addEventListener('click', async () => {
+        const office = officeSelect.value;
+        const opt = officeSelect.querySelector(`option[value="${office}"]`);
+        const name = opt ? opt.textContent.replace(/\s*\([^)]+\)/, '') : office;
+        const url = `${window.location.origin}/?office=${office}`;
+        const text = `${name} weather forecast in plain English`;
+        if (navigator.share) {
+            try { await navigator.share({ title: 'Plaincast', text, url }); } catch(e) {}
+        } else {
+            try {
+                await navigator.clipboard.writeText(url);
+            } catch(e) {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    });
+})();
+
+// ─── Text-to-Speech ──────────────────────────────────────────────────
+if ('speechSynthesis' in window) {
+    document.getElementById('sections').addEventListener('click', (e) => {
+        const btn = e.target.closest('.tts-btn');
+        if (!btn) return;
+        const wasPlaying = btn.classList.contains('speaking');
+        // Stop any current speech
+        if (speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+            document.querySelectorAll('.tts-btn.speaking').forEach(b => {
+                b.classList.remove('speaking');
+                b.querySelector('span').textContent = 'Listen';
+            });
+        }
+        if (wasPlaying) return; // User clicked Stop
+        // Get text from the plain-col, excluding the button itself
+        const col = btn.closest('.plain-col');
+        if (!col) return;
+        const clone = col.cloneNode(true);
+        clone.querySelectorAll('.tts-btn').forEach(b => b.remove());
+        const text = clone.textContent.trim();
+        if (!text) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 0.95;
+        btn.querySelector('span').textContent = 'Stop';
+        btn.classList.add('speaking');
+        utter.onend = () => {
+            btn.querySelector('span').textContent = 'Listen';
+            btn.classList.remove('speaking');
+        };
+        utter.onerror = utter.onend;
+        speechSynthesis.speak(utter);
+    });
+}
+
+// ─── Service Worker ──────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+}
 </script>
 
 <!-- Alert detail modal -->
@@ -2241,5 +2393,6 @@ setInterval(() => {
         <div class="alert-body" id="alert-modal-body"></div>
     </div>
 </div>
+<div class="share-toast" id="share-toast">Link copied!</div>
 </body>
 </html>

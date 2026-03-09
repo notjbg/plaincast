@@ -10,6 +10,12 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, s-maxage=3600, stale-while-revalidate=7200" }
       ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
     }
   ]
 }
