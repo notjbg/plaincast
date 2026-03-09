@@ -189,6 +189,7 @@
             --blue-light: #eff6ff;
             --border: #e7e5e4;
             --bg: #ffffff;
+            --text-muted: #44403c;
             --serif: Georgia, 'Times New Roman', serif;
             --mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
             --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -216,7 +217,7 @@
         }
         .header-row {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 1.5rem;
             flex-wrap: wrap;
         }
@@ -313,8 +314,8 @@
         }
         .confidence-bar-wrap {
             flex: 1;
-            max-width: 200px;
-            height: 6px;
+            max-width: 280px;
+            height: 10px;
             background: var(--border);
             border-radius: 3px;
             overflow: hidden;
@@ -331,12 +332,12 @@
             font-weight: 500;
         }
 
-        /* AI translation toggle */
+        /* AI translation toggle (mobile only) */
         .ai-toggle {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 2rem 0.75rem;
-            display: flex;
+            display: none;
             align-items: center;
             gap: 0.75rem;
         }
@@ -380,6 +381,7 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) {
             .ai-loading { animation: none; opacity: 0.6; }
+            .confidence-bar { transition: none; }
         }
         .plain-col .ai-translated {
             border-left: 2px solid var(--blue);
@@ -391,10 +393,15 @@
         .section-nav {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 2rem 1.5rem;
+            padding: 0.75rem 2rem;
             display: flex;
             gap: 0.5rem;
             flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
         }
         .section-nav a {
             font-family: var(--sans);
@@ -437,11 +444,27 @@
             gap: 2.5rem;
         }
         @media (max-width: 768px) {
+            /* Mobile column toggle visibility */
+            .columns.show-plain > div:last-child { display: none; }
+            .columns.show-original > div:first-child { display: none; }
             .columns { grid-template-columns: 1fr; gap: 1.5rem; }
-            .header, .takeaway, .section-nav, .sections { padding-left: 1.25rem; padding-right: 1.25rem; }
+            .header, .takeaway, .section-nav, .sections, .ai-toggle { padding-left: 1.25rem; padding-right: 1.25rem; }
             .header h1 { font-size: 1.5rem; }
+            /* 1. Show mobile view toggle */
+            .ai-toggle { display: flex; }
+            /* 2. Larger touch targets for section nav */
+            .section-nav a { padding: 0.5rem 1rem; font-size: 0.85rem; }
+            /* 4. Fix header layout */
+            .header-row { gap: 0.75rem; }
+            .header select { flex: 1; min-width: 0; }
+            /* 8. Horizontal scroll nav */
+            .section-nav { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            .section-nav::-webkit-scrollbar { display: none; }
+            .section-nav a { white-space: nowrap; flex-shrink: 0; }
+            /* 11. Footer mobile layout */
+            .footer { flex-direction: column; gap: 0.75rem; align-items: center; text-align: center; }
+            .footer-credit { margin-left: 0; }
         }
-
         .col-label {
             font-family: var(--sans);
             font-size: 0.7rem;
@@ -540,7 +563,7 @@
             display: flex;
         }
         .alert-modal {
-            background: #fff;
+            background: var(--bg);
             border-radius: 10px;
             max-width: 600px;
             width: 90%;
@@ -559,10 +582,10 @@
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: #666;
+            color: var(--text-light);
             line-height: 1;
         }
-        .alert-modal-close:hover { color: #222; }
+        .alert-modal-close:hover { color: var(--text); }
         .alert-modal h3 {
             margin: 0 0 0.5rem;
             font-size: 1.2rem;
@@ -570,7 +593,7 @@
         }
         .alert-modal .alert-meta {
             font-size: 0.85rem;
-            color: #666;
+            color: var(--text-light);
             margin-bottom: 1rem;
             font-family: var(--sans);
         }
@@ -582,7 +605,7 @@
         .alert-modal .alert-instruction {
             margin-top: 1rem;
             padding-top: 1rem;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid var(--border);
             font-weight: 500;
         }
 
@@ -591,7 +614,7 @@
             font-family: var(--mono);
             font-size: 0.82rem;
             line-height: 1.65;
-            color: #44403c;
+            color: var(--text-muted);
             white-space: pre-wrap;
             word-break: break-word;
         }
@@ -626,6 +649,7 @@
             font-weight: 400;
         }
         .jargon:hover .tip, .jargon.tip-open .tip { display: block; }
+        .jargon .tip.tip-below { bottom: auto; top: calc(100% + 6px); }
 
         /* Loading / error */
         .loading {
@@ -650,6 +674,7 @@
             flex-wrap: wrap;
         }
         .footer a { color: var(--text-light); }
+        .footer-credit { margin-left: auto; }
 
         /* Theme toggle */
         .theme-toggle {
@@ -678,6 +703,7 @@
         .dark {
             --text: #e5e5e5;
             --text-light: #a3a3a3;
+            --text-muted: #a8a29e;
             --blue: #60a5fa;
             --blue-light: rgba(37, 99, 235, 0.15);
             --border: #2a2a2a;
@@ -716,14 +742,8 @@
         .dark .alert-link { color: #93c5fd; text-decoration-color: rgba(147, 197, 253, 0.4); }
         .dark .alert-link:hover { text-decoration-color: #93c5fd; }
         .dark .alert-modal {
-            background: #1a1a1a;
-            color: #e5e5e5;
             box-shadow: 0 8px 30px rgba(0,0,0,0.5);
         }
-        .dark .alert-modal-close { color: #a3a3a3; }
-        .dark .alert-modal-close:hover { color: #e5e5e5; }
-        .dark .alert-modal .alert-meta { color: #a3a3a3; }
-        .dark .alert-modal .alert-instruction { border-top-color: #2a2a2a; }
         .dark .alert-modal-overlay { background: rgba(0,0,0,0.6); }
         .dark .jargon {
             background: rgba(202, 138, 4, 0.2);
@@ -735,7 +755,6 @@
             color: #e5e5e5;
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
-        .dark .annotated-col { color: #a8a29e; }
         .dark .confidence-bar-wrap { background: #2a2a2a; }
         .dark .ai-toggle-btn {
             background: #1a1a1a;
@@ -890,7 +909,7 @@
     <span>Summaries powered by <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer">Claude</a></span>
     <a href="" id="raw-link" target="_blank" rel="noopener noreferrer">View raw AFD</a>
     <a href="https://github.com/notjbg/plaincast" target="_blank" rel="noopener noreferrer">GitHub</a>
-    <span style="margin-left:auto">Built by <a href="https://github.com/notjbg" target="_blank" rel="noopener noreferrer">Jonah Berg</a></span>
+    <span class="footer-credit">Built by <a href="https://github.com/notjbg" target="_blank" rel="noopener noreferrer">Jonah Berg</a></span>
 </div>
 
 <script>
@@ -1749,6 +1768,12 @@ function displayConfidence(fullText) {
 
     bar.style.width = `${score}%`;
     bar.style.background = color;
+    bar.setAttribute('role', 'meter');
+    bar.setAttribute('aria-valuenow', score);
+    bar.setAttribute('aria-valuemin', 0);
+    bar.setAttribute('aria-valuemax', 100);
+    bar.setAttribute('aria-label', `Forecaster confidence: ${label}`);
+    bar.title = `Confidence score: ${score}%`;
     text.textContent = label;
     text.style.color = color;
     container.style.display = '';
@@ -1806,14 +1831,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (link) showAlertModal(ALERT_DATA[link.dataset.alertIdx]);
     });
 
-    // Jargon tooltip tap-to-toggle for mobile
+    // Jargon tooltip tap-to-toggle for mobile with bounds checking
     document.addEventListener('click', (e) => {
         const jargon = e.target.closest('.jargon');
-        // Close all other open tooltips
+        // Close all other open tooltips and reset their styles
         document.querySelectorAll('.jargon.tip-open').forEach(el => {
-            if (el !== jargon) el.classList.remove('tip-open');
+            if (el !== jargon) {
+                el.classList.remove('tip-open');
+                const tip = el.querySelector('.tip');
+                if (tip) { tip.style.left = ''; tip.style.right = ''; tip.style.transform = ''; tip.classList.remove('tip-below'); }
+            }
         });
-        if (jargon) jargon.classList.toggle('tip-open');
+        if (jargon) {
+            jargon.classList.toggle('tip-open');
+            if (jargon.classList.contains('tip-open')) {
+                const tip = jargon.querySelector('.tip');
+                if (tip) {
+                    // Reset position first
+                    tip.style.left = ''; tip.style.right = ''; tip.style.transform = ''; tip.classList.remove('tip-below');
+                    const rect = tip.getBoundingClientRect();
+                    // Fix horizontal overflow
+                    if (rect.left < 8) { tip.style.left = '0'; tip.style.transform = 'none'; }
+                    else if (rect.right > window.innerWidth - 8) { tip.style.left = 'auto'; tip.style.right = '0'; tip.style.transform = 'none'; }
+                    // Flip below if overflowing top
+                    if (rect.top < 0) { tip.classList.add('tip-below'); }
+                }
+            }
+        }
+    });
+
+    // Mobile view toggle (Summary / Original + Annotations)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-view]');
+        if (!btn) return;
+        const section = btn.closest('.forecast-section');
+        if (!section) return;
+        const columns = section.querySelector('.columns');
+        const view = btn.dataset.view;
+        // Update button states
+        section.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Update column visibility
+        columns.classList.remove('show-plain', 'show-original');
+        columns.classList.add(view === 'plain' ? 'show-plain' : 'show-original');
     });
 });
 
@@ -1926,7 +1986,11 @@ function render(sections) {
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
             <div class="section-title">${s.key}</div>
-            <div class="columns">
+            <div class="ai-toggle">
+                <button class="ai-toggle-btn active" data-view="plain">Summary</button>
+                <button class="ai-toggle-btn" data-view="original">Original + Annotations</button>
+            </div>
+            <div class="columns show-plain">
                 <div>
                     <div class="col-label">Summary · Powered by <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;text-decoration-color:var(--border)">Claude</a></div>
                     <div class="plain-col">${plainHtml}</div>
