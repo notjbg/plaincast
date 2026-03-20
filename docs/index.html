@@ -267,16 +267,18 @@
             </optgroup>
         </select>
     </div>
-    <div class="issue-time" id="issue-time"></div>
     <div class="header-meta">
+        <span class="issue-time" id="issue-time"></span>
+        <span class="meta-sep">·</span>
         <button class="share-btn" id="share-btn" aria-label="Share forecast link">Share ↗</button>
         <span class="share-toast" id="share-toast">Copied!</span>
         <button class="kbd-hint" id="kbd-hint" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
+        <span class="meta-sep">·</span>
+        <details class="explainer">
+            <summary>What is this?</summary>
+            <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
+        </details>
     </div>
-    <details class="explainer">
-        <summary>What is this?</summary>
-        <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
-    </details>
 </div>
 
 <div class="banner" id="refresh-banner" style="display:none" role="status" aria-live="polite">
@@ -300,13 +302,17 @@
     </div>
 </div>
 
-<div class="confidence" id="confidence-container" style="display:none">
-    <div class="confidence-box">
-        <div class="confidence-label">Forecaster Confidence</div>
-        <div class="confidence-bar-wrap">
-            <div class="confidence-bar" id="confidence-bar"></div>
+<div class="forecast-meta" id="forecast-meta">
+    <div class="forecast-meta-inner">
+        <div class="confidence" id="confidence-container" style="display:none">
+            <div class="confidence-box">
+                <div class="confidence-label">Forecaster Confidence</div>
+                <div class="confidence-bar-wrap">
+                    <div class="confidence-bar" id="confidence-bar"></div>
+                </div>
+                <div class="confidence-text" id="confidence-text"></div>
+            </div>
         </div>
-        <div class="confidence-text" id="confidence-text"></div>
     </div>
 </div>
 
