@@ -1,0 +1,11 @@
+{
+  "name": "plaincast",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "ai": "^6.0.0"
+  }
+}

@@ -1,6 +1,16 @@
 // Plaincast Service Worker — offline-capable weather forecasts
-const CACHE_NAME = 'plaincast-v1';
-const APP_SHELL = ['/', '/og-image.png'];
+const CACHE_NAME = 'plaincast-v2';
+const APP_SHELL = [
+    '/',
+    '/og-image.png',
+    '/styles.css',
+    '/js/app.js',
+    '/js/glossary.js',
+    '/js/offices.js',
+    '/js/abbreviations.js',
+    '/js/diff.js',
+    '/manifest.json',
+];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -21,8 +31,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Cache-first for app shell (HTML, images)
-    if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/og-image.png') {
+    // Cache-first for app shell (HTML, CSS, JS, images)
+    if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/og-image.png'
+        || url.pathname === '/styles.css' || url.pathname.startsWith('/js/')) {
         event.respondWith(
             caches.match(event.request).then(cached => {
                 const fetchPromise = fetch(event.request).then(response => {
