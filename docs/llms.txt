@@ -34,7 +34,7 @@ Plaincast is a free web application at https://plaincast.live that translates Na
 **Alaska & Pacific Islands:** Anchorage (AFC), Fairbanks (AFG), Honolulu (HFO)
 
 ## Technical Details
-- Single-file vanilla HTML/CSS/JS app (~2,000 lines)
+- Single-file vanilla HTML/CSS/JS app (~2,700 lines)
 - No frameworks, no build step, zero dependencies
 - NWS API (api.weather.gov) for forecast data, no API key needed
 - Vercel serverless function for Claude AI translation with caching

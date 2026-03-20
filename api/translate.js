@@ -91,6 +91,9 @@ Rules:
 - NWS Office: ${office || 'Unknown'}`;
 
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -99,16 +102,15 @@ Rules:
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-
-
-
-                model: 'claude-3-haiku-20240307',
-
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1024,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: text }]
-            })
+            }),
+            signal: controller.signal
         });
+
+        clearTimeout(timeout);
 
         if (!response.ok) {
             const err = await response.text();
