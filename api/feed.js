@@ -1,55 +1,17 @@
 // Vercel serverless function: RSS feed per NWS office
 // Uses regex translation (no AI cost) for feed content
 
-const VALID_OFFICES = new Set([
-    'OKX','BOX','PHI','LWX','PBZ','BUF','RAH','CHS',
-    'FFC','MFL','JAX','TBW','BMX','OHX','MRX','JAN',
-    'LOT','DTX','IND','CLE','ILN','MKX','GRR','LSX','EAX','DMX',
-    'MPX','DLH','FSD','BIS','OAX','FGF',
-    'FWD','HGX','EWX','OUN','TSA','LZK','LIX','SHV','LCH',
-    'BOU','PUB','GJT','SLC','BOI','BYZ','MSO','RIW',
-    'PSR','VEF','TWC','FGZ','ABQ','EPZ',
-    'LOX','SGX','MTR','STO','HNX','EKA','SEW','PQR','MFR','OTX',
-    'AFC','AFG','HFO'
-]);
+import { OFFICE_NAMES } from '../docs/js/offices.js';
+import { BASIC_ABBREVIATIONS } from '../docs/js/abbreviations.js';
 
-const OFFICE_NAMES = {
-    'OKX': 'New York', 'BOX': 'Boston', 'PHI': 'Philadelphia', 'LWX': 'Washington DC',
-    'PBZ': 'Pittsburgh', 'BUF': 'Buffalo', 'RAH': 'Raleigh', 'CHS': 'Charleston SC',
-    'FFC': 'Atlanta', 'MFL': 'Miami', 'JAX': 'Jacksonville', 'TBW': 'Tampa Bay',
-    'BMX': 'Birmingham', 'OHX': 'Nashville', 'MRX': 'Morristown', 'JAN': 'Jackson MS',
-    'LOT': 'Chicago', 'DTX': 'Detroit', 'IND': 'Indianapolis', 'CLE': 'Cleveland',
-    'ILN': 'Cincinnati', 'MKX': 'Milwaukee', 'GRR': 'Grand Rapids', 'LSX': 'St. Louis',
-    'EAX': 'Kansas City', 'DMX': 'Des Moines', 'MPX': 'Minneapolis', 'DLH': 'Duluth',
-    'FSD': 'Sioux Falls', 'BIS': 'Bismarck', 'OAX': 'Omaha', 'FGF': 'Grand Forks',
-    'FWD': 'Dallas/Fort Worth', 'HGX': 'Houston', 'EWX': 'San Antonio',
-    'OUN': 'Oklahoma City', 'TSA': 'Tulsa', 'LZK': 'Little Rock',
-    'LIX': 'New Orleans', 'SHV': 'Shreveport', 'LCH': 'Lake Charles',
-    'BOU': 'Denver', 'PUB': 'Pueblo', 'GJT': 'Grand Junction', 'SLC': 'Salt Lake City',
-    'BOI': 'Boise', 'BYZ': 'Billings', 'MSO': 'Missoula', 'RIW': 'Riverton',
-    'PSR': 'Phoenix', 'VEF': 'Las Vegas', 'TWC': 'Tucson', 'FGZ': 'Flagstaff',
-    'ABQ': 'Albuquerque', 'EPZ': 'El Paso',
-    'LOX': 'Los Angeles', 'SGX': 'San Diego', 'MTR': 'San Francisco',
-    'STO': 'Sacramento', 'HNX': 'Central California', 'EKA': 'Eureka',
-    'SEW': 'Seattle', 'PQR': 'Portland', 'MFR': 'Medford', 'OTX': 'Spokane',
-    'AFC': 'Anchorage', 'AFG': 'Fairbanks', 'HFO': 'Honolulu',
-};
+const VALID_OFFICES = new Set(Object.keys(OFFICE_NAMES));
 
-// Simple regex translation (mirrors client-side translateToPlainEnglish, text-only)
+// Regex translation using shared abbreviation patterns
 function regexTranslate(text) {
     let t = text;
     t = t.replace(/\.{3,}/g, '. ');
     t = t.replace(/[ \t]{2,}/g, ' ');
-    const abbrevs = [
-        [/\bchc\b/gi, 'chance'], [/\bcsts\b/gi, 'coasts'], [/\bvlys\b/gi, 'valleys'],
-        [/\bmtns\b/gi, 'mountains'], [/\bwnds\b/gi, 'winds'], [/\btemps\b/gi, 'temperatures'],
-        [/\bpcpn\b/gi, 'precipitation'], [/\baftn\b/gi, 'afternoon'], [/\bmrng\b/gi, 'morning'],
-        [/\berly\b/gi, 'early'], [/\bthru\b/gi, 'through'], [/\bbtwn\b/gi, 'between'],
-        [/\bisol\b/gi, 'isolated'], [/\bocnl\b/gi, 'occasional'], [/\bcont\b/gi, 'continue'],
-        [/\bincr\b/gi, 'increase'], [/\bdecr\b/gi, 'decrease'], [/\bfcst\b/gi, 'forecast'],
-        [/\bTSTMS?\b/gi, 'thunderstorms'], [/\bSFC\b/g, 'surface'], [/\btrof\b/gi, 'trough'],
-    ];
-    for (const [pat, rep] of abbrevs) t = t.replace(pat, rep);
+    for (const [pat, rep] of BASIC_ABBREVIATIONS) t = t.replace(pat, rep);
     return t.trim();
 }
 

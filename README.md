@@ -46,18 +46,30 @@ Covering all US regions: Northeast (New York, Boston, Philadelphia, Washington D
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  docs/index.html - single-file vanilla app      │
+│  docs/                                          │
+│    ├─ index.html        (markup only, ~350 loc) │
+│    ├─ styles.css        (all CSS)               │
+│    ├─ js/app.js         (main app logic)        │
+│    ├─ js/glossary.js    (270+ term glossary)    │
+│    ├─ js/offices.js     (68 office data)        │
+│    ├─ js/abbreviations.js (shared NWS abbrevs)  │
+│    ├─ js/diff.js        (forecast diff engine)  │
+│    ├─ sw.js             (service worker)        │
+│    └─ manifest.json     (PWA manifest)          │
 │                                                 │
 │  NWS API (api.weather.gov)                      │
 │    ├─ /products/types/AFD/locations/{office}     │
 │    ├─ /products/{id}                            │
-│    └─ /alerts/active?area={state}               │
+│    ├─ /alerts/active?area={state}               │
+│    └─ /stations/{id}/observations/latest        │
 │                                                 │
-│  Vercel Serverless (/api/translate)             │
-│    └─ Anthropic Claude Haiku                    │
-│       └─ In-memory + client-side caching        │
+│  Vercel Serverless                              │
+│    ├─ /api/translate  (AI Gateway → Claude)     │
+│    ├─ /api/feed       (RSS per office)          │
+│    ├─ /api/og         (dynamic OG images)       │
+│    └─ /api/conditions (current weather + avg)   │
 │                                                 │
-│  No framework. No build step. No API key needed.│
+│  No framework. No build step. ES modules.       │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -65,10 +77,11 @@ Covering all US regions: Northeast (New York, Boston, Philadelphia, Washington D
 
 ## Technical Details
 
-- **Single-file app** - Everything in `docs/index.html` (~2,500 lines)
-- **Zero frontend dependencies** - Vanilla HTML/CSS/JS, no frameworks, no build step
+- **Modular vanilla app** - ES modules in `docs/js/`, no framework, no build step
+- **Zero frontend dependencies** - Vanilla HTML/CSS/JS with ES module imports
 - **NWS API** - Pulls directly from `api.weather.gov` (no API key needed)
-- **AI summaries** - Claude Haiku via Vercel serverless with aggressive caching
+- **AI summaries** - Claude Haiku via Vercel AI Gateway with OIDC auth
+- **Forecast diff** - Paragraph-level comparison showing what changed between AFD versions
 - **System fonts** - Georgia serif for body, system monospace for raw AFD, system sans for UI
 - **Light mode** - Editorial design with generous whitespace
 - **Mobile responsive** - Side-by-side stacks to vertical on screens under 768px

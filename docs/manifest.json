@@ -1,0 +1,16 @@
+{
+    "name": "Plaincast",
+    "short_name": "Plaincast",
+    "description": "What the forecast actually says",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2563eb",
+    "icons": [
+        {
+            "src": "/og-image.png",
+            "sizes": "1200x630",
+            "type": "image/png"
+        }
+    ]
+}
