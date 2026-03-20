@@ -73,7 +73,7 @@
             "Forecaster confidence indicator",
             "Zulu to local time conversion (DST-aware)",
             "Active weather alerts with full detail view",
-            "31 NWS forecast offices",
+            "68 NWS forecast offices",
             "Key takeaway extraction"
         ],
         "sameAs": [
@@ -112,7 +112,7 @@
                 "name": "Which NWS offices does Plaincast support?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Plaincast supports 31 NWS forecast offices including Los Angeles (LOX), New York (OKX), Chicago (LOT), Houston (HGX), Phoenix (PSR), San Francisco (MTR), Miami (MFL), Seattle (SEW), Denver (BOU), and more."
+                    "text": "Plaincast supports 68 NWS forecast offices across all US regions including Los Angeles (LOX), New York (OKX), Chicago (LOT), Houston (HGX), Phoenix (PSR), San Francisco (MTR), Miami (MFL), Seattle (SEW), Denver (BOU), and many more."
                 }
             },
             {
@@ -144,7 +144,7 @@
             {
                 "@type": "HowToStep",
                 "name": "Select your NWS office",
-                "text": "Choose your local NWS forecast office from the dropdown menu. Plaincast supports 31 offices across the United States."
+                "text": "Choose your local NWS forecast office from the dropdown menu. Plaincast supports 68 offices across the United States."
             },
             {
                 "@type": "HowToStep",
@@ -775,6 +775,111 @@
         .dark .section-nav a:hover { color: #e5e5e5; border-color: #a3a3a3; }
         .dark .plain-col .ai-translated { border-left-color: #60a5fa; }
         .dark .footer { border-top-color: #2a2a2a; }
+
+        /* Share button + toast */
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .share-btn, .kbd-hint {
+            font-family: var(--sans);
+            font-size: 0.8rem;
+            color: var(--text-light);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.15rem 0.4rem;
+        }
+        .share-btn:hover, .kbd-hint:hover { color: var(--text); }
+        .share-toast {
+            font-family: var(--sans);
+            font-size: 0.75rem;
+            color: var(--blue);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .share-toast.show { opacity: 1; }
+        kbd {
+            display: inline-block;
+            min-width: 1.5em;
+            padding: 0.15rem 0.4rem;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            background: var(--border);
+            border-radius: 3px;
+            text-align: center;
+            margin-right: 0.5rem;
+        }
+        .dark kbd { background: #2a2a2a; }
+        @media (max-width: 768px) {
+            .kbd-hint { display: none; }
+        }
+
+        /* Banners (auto-refresh, offline) */
+        .banner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        .banner-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 1rem;
+            border-radius: 0 6px 6px 0;
+            border-left: 3px solid;
+            font-family: var(--sans);
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            animation: slideDown 0.2s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .banner-blue { background: var(--blue-light); border-left-color: var(--blue); color: var(--text); }
+        .banner-amber { background: #fffbeb; border-left-color: #d97706; color: #92400e; }
+        .dark .banner-amber { background: rgba(217, 119, 6, 0.12); color: #fcd34d; }
+        .banner-action {
+            font-family: var(--sans);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--blue);
+            background: none;
+            border: 1px solid var(--blue);
+            border-radius: 4px;
+            padding: 0.2rem 0.6rem;
+            cursor: pointer;
+        }
+        .banner-action:hover { background: var(--blue); color: #fff; }
+        .banner-dismiss {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-light);
+            cursor: pointer;
+            margin-left: auto;
+            padding: 0 0.25rem;
+        }
+        .banner-dismiss:hover { color: var(--text); }
+
+        /* Print stylesheet */
+        @media print {
+            .header-row select, .header-row button, .header-meta,
+            .ai-toggle, .section-nav, .footer, .confidence,
+            .banner, .explainer, .alert-modal-overlay,
+            .col-label, .annotated-col, .columns > div:last-child,
+            .ai-loading, #history-selector, #kbd-overlay {
+                display: none !important;
+            }
+            .dark { --text: #1c1917; --text-light: #78716c; --bg: #ffffff; --border: #e7e5e4; --blue: #2563eb; --blue-light: #eff6ff; }
+            body, .dark body { background: #fff !important; color: #1c1917 !important; }
+            .columns { grid-template-columns: 1fr !important; }
+            .header { padding-top: 1rem; }
+            .sections { padding-bottom: 1rem; }
+        }
     </style>
 </head>
 <body>
@@ -875,10 +980,29 @@
         </select>
     </div>
     <div class="issue-time" id="issue-time"></div>
+    <div class="header-meta">
+        <button class="share-btn" id="share-btn" aria-label="Share forecast link">Share ↗</button>
+        <span class="share-toast" id="share-toast">Copied!</span>
+        <button class="kbd-hint" id="kbd-hint" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
+    </div>
     <details class="explainer">
         <summary>What is this?</summary>
         <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
     </details>
+</div>
+
+<div class="banner" id="refresh-banner" style="display:none" role="status" aria-live="polite">
+    <div class="banner-box banner-blue">
+        <span>New forecast available</span>
+        <button class="banner-action" id="refresh-load">Load</button>
+        <button class="banner-dismiss" id="refresh-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+</div>
+
+<div class="banner" id="offline-banner" style="display:none" role="alert">
+    <div class="banner-box banner-amber">
+        <span id="offline-text">Offline — showing cached forecast</span>
+    </div>
 </div>
 
 <div class="takeaway" id="takeaway-container" style="display:none">
@@ -1188,71 +1312,133 @@ const GLOSSARY = {
     'NE flow': 'Northeast flow — air from the northeast, often associated with offshore/Santa Ana winds',
 };
 
-// ─── Office timezone mapping ────────────────────────────────────────
+// ─── Office timezone mapping (all 68 offices) ──────────────────────
 const OFFICE_TIMEZONES = {
-    'LOX': 'America/Los_Angeles',
-    'SGX': 'America/Los_Angeles',
-    'HNX': 'America/Los_Angeles',
-    'MTR': 'America/Los_Angeles',
-    'STO': 'America/Los_Angeles',
-    'SEW': 'America/Los_Angeles',
-    'PQR': 'America/Los_Angeles',
-    'VEF': 'America/Los_Angeles',
-    'OKX': 'America/New_York',
-    'PHI': 'America/New_York',
-    'BOX': 'America/New_York',
-    'MFL': 'America/New_York',
-    'FFC': 'America/New_York',
-    'LWX': 'America/New_York',
-    'CLE': 'America/New_York',
-    'RAH': 'America/New_York',
-    'JAX': 'America/New_York',
-    'LOT': 'America/Chicago',
-    'HGX': 'America/Chicago',
-    'FWD': 'America/Chicago',
-    'EWX': 'America/Chicago',
-    'MPX': 'America/Chicago',
-    'PSR': 'America/Phoenix',
-    'BOU': 'America/Denver',
-    'GJT': 'America/Denver',
-    'SLC': 'America/Denver',
-    'ABQ': 'America/Denver',
-    'DTX': 'America/Detroit',
-    'IND': 'America/Indiana/Indianapolis',
-    'HFO': 'Pacific/Honolulu',
-    'AFC': 'America/Anchorage',
+    // Northeast
+    'OKX': 'America/New_York', 'BOX': 'America/New_York', 'PHI': 'America/New_York',
+    'LWX': 'America/New_York', 'PBZ': 'America/New_York', 'BUF': 'America/New_York',
+    'RAH': 'America/New_York', 'CHS': 'America/New_York',
+    // Southeast
+    'FFC': 'America/New_York', 'MFL': 'America/New_York', 'JAX': 'America/New_York',
+    'TBW': 'America/New_York', 'MRX': 'America/New_York',
+    'BMX': 'America/Chicago', 'OHX': 'America/Chicago', 'JAN': 'America/Chicago',
+    // Great Lakes / Midwest
+    'LOT': 'America/Chicago', 'DTX': 'America/Detroit', 'IND': 'America/Indiana/Indianapolis',
+    'CLE': 'America/New_York', 'ILN': 'America/New_York', 'GRR': 'America/New_York',
+    'MKX': 'America/Chicago', 'LSX': 'America/Chicago', 'EAX': 'America/Chicago',
+    'DMX': 'America/Chicago',
+    // Northern Plains
+    'MPX': 'America/Chicago', 'DLH': 'America/Chicago', 'FSD': 'America/Chicago',
+    'BIS': 'America/Chicago', 'OAX': 'America/Chicago', 'FGF': 'America/Chicago',
+    // South Central
+    'FWD': 'America/Chicago', 'HGX': 'America/Chicago', 'EWX': 'America/Chicago',
+    'OUN': 'America/Chicago', 'TSA': 'America/Chicago', 'LZK': 'America/Chicago',
+    'LIX': 'America/Chicago', 'SHV': 'America/Chicago', 'LCH': 'America/Chicago',
+    // Rockies & Mountain West
+    'BOU': 'America/Denver', 'PUB': 'America/Denver', 'GJT': 'America/Denver',
+    'SLC': 'America/Denver', 'BOI': 'America/Boise', 'BYZ': 'America/Denver',
+    'MSO': 'America/Denver', 'RIW': 'America/Denver',
+    // Southwest
+    'PSR': 'America/Phoenix', 'VEF': 'America/Los_Angeles', 'TWC': 'America/Phoenix',
+    'FGZ': 'America/Phoenix', 'ABQ': 'America/Denver', 'EPZ': 'America/Denver',
+    // Pacific
+    'LOX': 'America/Los_Angeles', 'SGX': 'America/Los_Angeles', 'MTR': 'America/Los_Angeles',
+    'STO': 'America/Los_Angeles', 'HNX': 'America/Los_Angeles', 'EKA': 'America/Los_Angeles',
+    'SEW': 'America/Los_Angeles', 'PQR': 'America/Los_Angeles', 'MFR': 'America/Los_Angeles',
+    'OTX': 'America/Los_Angeles',
+    // Alaska & Pacific Islands
+    'AFC': 'America/Anchorage', 'AFG': 'America/Anchorage', 'HFO': 'Pacific/Honolulu',
 };
+// ─── Office coordinates for geolocation (lat, lon) ─────────────────
+const OFFICE_COORDS = {
+    'OKX': [40.87, -72.86], 'BOX': [41.96, -71.14], 'PHI': [40.01, -74.81],
+    'LWX': [38.97, -77.48], 'PBZ': [40.53, -80.22], 'BUF': [42.94, -78.74],
+    'RAH': [35.87, -78.78], 'CHS': [32.90, -80.03], 'FFC': [33.36, -84.57],
+    'MFL': [25.76, -80.38], 'JAX': [30.33, -81.69], 'TBW': [27.71, -82.40],
+    'BMX': [33.17, -86.77], 'OHX': [36.25, -86.56], 'MRX': [36.17, -83.40],
+    'JAN': [32.32, -90.08], 'LOT': [41.60, -88.09], 'DTX': [42.70, -83.47],
+    'IND': [39.71, -86.28], 'CLE': [41.41, -81.86], 'ILN': [39.42, -83.82],
+    'MKX': [42.97, -88.55], 'GRR': [42.89, -85.55], 'LSX': [38.70, -90.68],
+    'EAX': [38.81, -94.26], 'DMX': [41.73, -93.72], 'MPX': [44.85, -93.57],
+    'DLH': [46.84, -92.21], 'FSD': [43.59, -96.73], 'BIS': [46.77, -100.76],
+    'OAX': [41.32, -96.37], 'FGF': [47.92, -97.10], 'FWD': [32.83, -97.30],
+    'HGX': [29.47, -95.08], 'EWX': [29.70, -98.03], 'OUN': [35.24, -97.46],
+    'TSA': [36.21, -95.87], 'LZK': [34.83, -92.26], 'LIX': [30.34, -89.83],
+    'SHV': [32.45, -93.84], 'LCH': [30.12, -93.22], 'BOU': [39.99, -105.26],
+    'PUB': [38.28, -104.62], 'GJT': [39.12, -108.53], 'SLC': [40.77, -111.96],
+    'BOI': [43.56, -116.22], 'BYZ': [45.75, -108.57], 'MSO': [46.92, -114.09],
+    'RIW': [43.07, -108.48], 'PSR': [33.46, -112.02], 'VEF': [36.05, -115.18],
+    'TWC': [32.23, -110.95], 'FGZ': [35.23, -111.82], 'ABQ': [35.04, -106.62],
+    'EPZ': [32.08, -106.62], 'LOX': [34.20, -119.20], 'SGX': [32.92, -117.11],
+    'MTR': [36.60, -121.90], 'STO': [38.60, -121.37], 'HNX': [36.31, -119.63],
+    'EKA': [40.80, -124.16], 'SEW': [47.69, -122.26], 'PQR': [45.56, -122.54],
+    'MFR': [42.38, -122.87], 'OTX': [47.68, -117.63], 'AFC': [61.16, -150.02],
+    'AFG': [64.84, -147.71], 'HFO': [21.30, -157.84],
+};
+
 let currentOffice = 'LOX';
 let fetchGeneration = 0; // race condition guard for rapid office switching
 let issueTimeDate = null; // for auto-updating "X ago"
 
-// Office → state for alerts API
+// Office → state for alerts API (all 68 offices)
 const OFFICE_STATES = {
-    'LOX': 'CA', 'SGX': 'CA', 'HNX': 'CA', 'MTR': 'CA', 'STO': 'CA',
-    'OKX': 'NY', 'PHI': 'PA', 'BOX': 'MA', 'LWX': 'VA',
-    'MFL': 'FL', 'FFC': 'GA', 'JAX': 'FL',
-    'LOT': 'IL', 'HGX': 'TX', 'FWD': 'TX', 'EWX': 'TX',
-    'PSR': 'AZ', 'BOU': 'CO',
-    'SEW': 'WA', 'PQR': 'OR', 'VEF': 'NV',
-    'GJT': 'CO', 'SLC': 'UT', 'ABQ': 'NM',
-    'DTX': 'MI', 'IND': 'IN', 'MPX': 'MN',
-    'CLE': 'OH', 'RAH': 'NC',
-    'HFO': 'HI', 'AFC': 'AK',
+    // Northeast
+    'OKX': 'NY', 'BOX': 'MA', 'PHI': 'PA', 'LWX': 'VA', 'PBZ': 'PA', 'BUF': 'NY',
+    'RAH': 'NC', 'CHS': 'SC',
+    // Southeast
+    'FFC': 'GA', 'MFL': 'FL', 'JAX': 'FL', 'TBW': 'FL', 'BMX': 'AL', 'OHX': 'TN',
+    'MRX': 'TN', 'JAN': 'MS',
+    // Midwest
+    'LOT': 'IL', 'DTX': 'MI', 'IND': 'IN', 'CLE': 'OH', 'ILN': 'OH', 'MKX': 'WI',
+    'GRR': 'MI', 'LSX': 'MO', 'EAX': 'MO', 'DMX': 'IA',
+    // Northern Plains
+    'MPX': 'MN', 'DLH': 'MN', 'FSD': 'SD', 'BIS': 'ND', 'OAX': 'NE', 'FGF': 'ND',
+    // South Central
+    'FWD': 'TX', 'HGX': 'TX', 'EWX': 'TX', 'OUN': 'OK', 'TSA': 'OK', 'LZK': 'AR',
+    'LIX': 'LA', 'SHV': 'LA', 'LCH': 'LA', 'EPZ': 'TX',
+    // Rockies & Mountain West
+    'BOU': 'CO', 'PUB': 'CO', 'GJT': 'CO', 'SLC': 'UT', 'BOI': 'ID', 'BYZ': 'MT',
+    'MSO': 'MT', 'RIW': 'WY',
+    // Southwest
+    'PSR': 'AZ', 'VEF': 'NV', 'TWC': 'AZ', 'FGZ': 'AZ', 'ABQ': 'NM',
+    // Pacific
+    'LOX': 'CA', 'SGX': 'CA', 'MTR': 'CA', 'STO': 'CA', 'HNX': 'CA', 'EKA': 'CA',
+    'SEW': 'WA', 'PQR': 'OR', 'MFR': 'OR', 'OTX': 'WA',
+    // Alaska & Pacific Islands
+    'AFC': 'AK', 'AFG': 'AK', 'HFO': 'HI',
 };
 
-// Office → sender name fragment for matching alerts
+// Office → sender name fragment for matching alerts (all 68 offices)
 const OFFICE_SENDER = {
-    'LOX': 'Los Angeles', 'SGX': 'San Diego', 'HNX': 'Hanford', 'MTR': 'San Francisco',
-    'STO': 'Sacramento',
-    'OKX': 'New York', 'PHI': 'Mount Holly', 'BOX': 'Boston', 'LWX': 'Baltimore',
-    'MFL': 'Miami', 'FFC': 'Peachtree', 'JAX': 'Jacksonville',
-    'LOT': 'Chicago', 'HGX': 'Houston', 'FWD': 'Fort Worth', 'EWX': 'San Antonio',
-    'PSR': 'Phoenix', 'BOU': 'Denver',
-    'SEW': 'Seattle', 'PQR': 'Portland', 'VEF': 'Las Vegas',
-    'GJT': 'Grand Junction', 'SLC': 'Salt Lake City', 'ABQ': 'Albuquerque',
-    'DTX': 'Detroit', 'IND': 'Indianapolis', 'MPX': 'Twin Cities',
-    'CLE': 'Cleveland', 'RAH': 'Raleigh',
-    'HFO': 'Honolulu', 'AFC': 'Anchorage',
+    // Northeast
+    'OKX': 'New York', 'BOX': 'Boston', 'PHI': 'Mount Holly', 'LWX': 'Baltimore',
+    'PBZ': 'Pittsburgh', 'BUF': 'Buffalo', 'RAH': 'Raleigh', 'CHS': 'Charleston',
+    // Southeast
+    'FFC': 'Peachtree', 'MFL': 'Miami', 'JAX': 'Jacksonville', 'TBW': 'Tampa Bay',
+    'BMX': 'Birmingham', 'OHX': 'Nashville', 'MRX': 'Morristown', 'JAN': 'Jackson',
+    // Midwest
+    'LOT': 'Chicago', 'DTX': 'Detroit', 'IND': 'Indianapolis', 'CLE': 'Cleveland',
+    'ILN': 'Wilmington', 'MKX': 'Milwaukee', 'GRR': 'Grand Rapids', 'LSX': 'St. Louis',
+    'EAX': 'Kansas City', 'DMX': 'Des Moines',
+    // Northern Plains
+    'MPX': 'Twin Cities', 'DLH': 'Duluth', 'FSD': 'Sioux Falls', 'BIS': 'Bismarck',
+    'OAX': 'Omaha', 'FGF': 'Grand Forks',
+    // South Central
+    'FWD': 'Fort Worth', 'HGX': 'Houston', 'EWX': 'San Antonio', 'OUN': 'Norman',
+    'TSA': 'Tulsa', 'LZK': 'Little Rock', 'LIX': 'New Orleans', 'SHV': 'Shreveport',
+    'LCH': 'Lake Charles', 'EPZ': 'El Paso',
+    // Rockies & Mountain West
+    'BOU': 'Denver', 'PUB': 'Pueblo', 'GJT': 'Grand Junction', 'SLC': 'Salt Lake City',
+    'BOI': 'Boise', 'BYZ': 'Billings', 'MSO': 'Missoula', 'RIW': 'Riverton',
+    // Southwest
+    'PSR': 'Phoenix', 'VEF': 'Las Vegas', 'TWC': 'Tucson', 'FGZ': 'Flagstaff',
+    'ABQ': 'Albuquerque', 'EPZ': 'El Paso',
+    // Pacific
+    'LOX': 'Los Angeles', 'SGX': 'San Diego', 'MTR': 'San Francisco', 'STO': 'Sacramento',
+    'HNX': 'Hanford', 'EKA': 'Eureka', 'SEW': 'Seattle', 'PQR': 'Portland',
+    'MFR': 'Medford', 'OTX': 'Spokane',
+    // Alaska & Pacific Islands
+    'AFC': 'Anchorage', 'AFG': 'Fairbanks', 'HFO': 'Honolulu',
 };
 
 // Fetch live alerts and return map of event name → alert URL
@@ -1933,7 +2119,7 @@ function simpleHash(str) {
 }
 
 async function fetchAITranslation(text, section, office) {
-    const key = simpleHash(text);
+    const key = simpleHash(text + '|' + section + '|' + office);
     if (aiCache[key]) return aiCache[key];
 
     const res = await fetch('/api/translate', {
@@ -1943,8 +2129,10 @@ async function fetchAITranslation(text, section, office) {
     });
     if (!res.ok) throw new Error('Translation failed');
     const data = await res.json();
-    // Convert markdown bold to HTML
-    let html = data.translation
+    // Sanitize: escape HTML entities first, then convert markdown bold
+    let safe = data.translation
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let html = safe
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .split(/\n\s*\n+/)
         .filter(b => b.trim())
@@ -2004,19 +2192,24 @@ function render(sections) {
     }).join('');
 
     // Fire off AI translations with concurrency limit (2 at a time)
+    // Capture current generation to prevent stale writes if office changes mid-translation
+    const renderGen = fetchGeneration;
     const toTranslate = sections.filter(s => s.key !== 'Active Alerts');
     const concurrency = 2;
     let i = 0;
     async function translateNext() {
         while (i < toTranslate.length) {
             const s = toTranslate[i++];
+            if (renderGen !== fetchGeneration) return; // office changed, abort
             const el = document.getElementById(`section-${safeId(s.key)}`);
             if (!el) continue;
             const plainCol = el.querySelector('.plain-col');
             try {
                 const html = await fetchAITranslation(s.text, s.key, currentOffice);
+                if (renderGen !== fetchGeneration) return; // office changed during fetch
                 plainCol.innerHTML = html;
             } catch (err) {
+                if (renderGen !== fetchGeneration) return;
                 console.warn('AI translation failed for', s.key, err);
                 plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-light);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
             }
@@ -2157,15 +2350,41 @@ async function renderAFD(prodData, office) {
     });
 }
 
+// ─── Geolocation: find nearest office ───────────────────────────────
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function findNearestOffice(lat, lon) {
+    let nearest = 'LOX', minDist = Infinity;
+    for (const [code, [oLat, oLon]] of Object.entries(OFFICE_COORDS)) {
+        const d = haversineDistance(lat, lon, oLat, oLon);
+        if (d < minDist) { minDist = d; nearest = code; }
+    }
+    return nearest;
+}
+
 // ─── Init ───────────────────────────────────────────────────────────
 const officeSelect = document.getElementById('office-select');
 
-// Support ?office= URL parameter for shareable links
+// Office priority: URL param > localStorage > geolocation > LOX
 const urlParams = new URLSearchParams(window.location.search);
 const urlOffice = urlParams.get('office')?.toUpperCase();
+const savedOffice = (() => { try { return localStorage.getItem('plaincast-office'); } catch(e) { return null; } })();
+let initialOffice = 'LOX';
+
 if (urlOffice && officeSelect.querySelector(`option[value="${urlOffice}"]`)) {
-    officeSelect.value = urlOffice;
+    initialOffice = urlOffice;
+} else if (savedOffice && officeSelect.querySelector(`option[value="${savedOffice}"]`)) {
+    initialOffice = savedOffice;
 }
+officeSelect.value = initialOffice;
 
 function updateTitle(office) {
     const opt = officeSelect.querySelector(`option[value="${office}"]`);
@@ -2173,29 +2392,60 @@ function updateTitle(office) {
     document.title = `${name} Forecast - Plaincast`;
 }
 
-officeSelect.addEventListener('change', () => {
-    const office = officeSelect.value;
-    // Update URL and title without reload
-    const url = new URL(window.location);
-    url.searchParams.set('office', office);
-    history.pushState({}, '', url);
+function selectOffice(office, updateUrl) {
+    officeSelect.value = office;
+    if (updateUrl !== false) {
+        const url = new URL(window.location);
+        url.searchParams.set('office', office);
+        history.pushState({}, '', url);
+    }
+    try { localStorage.setItem('plaincast-office', office); } catch(e) { /* quota */ }
     updateTitle(office);
     fetchAFD(office);
-});
+}
+
+officeSelect.addEventListener('change', () => selectOffice(officeSelect.value));
 
 // Handle browser back/forward
 window.addEventListener('popstate', () => {
     const params = new URLSearchParams(window.location.search);
     const office = params.get('office')?.toUpperCase();
     if (office && officeSelect.querySelector(`option[value="${office}"]`)) {
-        officeSelect.value = office;
-        updateTitle(office);
-        fetchAFD(office);
+        selectOffice(office, false);
     }
 });
 
-updateTitle(officeSelect.value);
-fetchAFD(officeSelect.value);
+// Load initial office
+updateTitle(initialOffice);
+fetchAFD(initialOffice);
+
+// Geolocation: auto-detect after initial load (non-blocking)
+if (!urlOffice && !savedOffice && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const detected = findNearestOffice(pos.coords.latitude, pos.coords.longitude);
+            if (detected !== initialOffice) {
+                selectOffice(detected);
+                const issueEl = document.getElementById('issue-time');
+                if (issueEl) {
+                    const flash = document.createElement('span');
+                    flash.textContent = ' \u{1f4cd} Detected';
+                    flash.style.cssText = 'color:var(--blue);font-size:0.8rem;transition:opacity 1s';
+                    issueEl.appendChild(flash);
+                    setTimeout(() => { flash.style.opacity = '0'; }, 2000);
+                    setTimeout(() => flash.remove(), 3000);
+                }
+            }
+        },
+        () => { /* denied or error — silent fallback */ },
+        { timeout: 5000, maximumAge: 300000 }
+    );
+}
+
+// ─── Service worker registration ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* no-op */ });
+}
 
 // ─── Theme toggle ───────────────────────────────────────────────────
 (function() {
@@ -2230,7 +2480,202 @@ setInterval(() => {
     const el = document.getElementById('issue-time');
     if (el) el.textContent = el.textContent.replace(/ - \d+.*$/, ` - ${timeAgo(issueTimeDate)}`);
 }, 60000);
+
+// ─── Share button ───────────────────────────────────────────────────
+document.getElementById('share-btn').addEventListener('click', async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+        try { await navigator.share({ title: document.title, url }); return; } catch(e) { /* cancelled */ }
+    }
+    try {
+        await navigator.clipboard.writeText(url);
+        const toast = document.getElementById('share-toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    } catch(e) {
+        prompt('Copy this URL:', url);
+    }
+});
+
+// ─── Auto-refresh polling (10 min, visibility-aware) ────────────────
+let lastProductId = null;
+let refreshTimer = null;
+
+function startRefreshPolling() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(async () => {
+        if (document.hidden) return;
+        try {
+            const res = await fetch(`https://api.weather.gov/products/types/AFD/locations/${currentOffice}`, {
+                headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const latest = data['@graph']?.[0];
+            if (latest && lastProductId && latest.id !== lastProductId) {
+                document.getElementById('refresh-banner').style.display = '';
+            }
+        } catch(e) { /* silent retry next cycle */ }
+    }, 10 * 60 * 1000);
+}
+
+// Track current product ID for refresh detection
+const _origRenderAFD = renderAFD;
+renderAFD = async function(prodData, office) {
+    lastProductId = prodData.id;
+    return _origRenderAFD(prodData, office);
+};
+
+document.getElementById('refresh-load')?.addEventListener('click', () => {
+    document.getElementById('refresh-banner').style.display = 'none';
+    // Clear cache so fetchAFD doesn't serve stale data
+    sessionStorage.removeItem(`afd-${currentOffice}`);
+    fetchAFD(currentOffice);
+});
+document.getElementById('refresh-dismiss')?.addEventListener('click', () => {
+    document.getElementById('refresh-banner').style.display = 'none';
+});
+
+startRefreshPolling();
+
+// ─── Offline detection ──────────────────────────────────────────────
+window.addEventListener('offline', () => {
+    document.getElementById('offline-banner').style.display = '';
+});
+window.addEventListener('online', () => {
+    document.getElementById('offline-banner').style.display = 'none';
+});
+if (!navigator.onLine) {
+    document.getElementById('offline-banner').style.display = '';
+}
+
+// ─── Keyboard shortcuts ────────────────────────────────────────────
+const kbdOverlay = document.getElementById('kbd-overlay');
+document.getElementById('kbd-hint')?.addEventListener('click', () => {
+    kbdOverlay.classList.add('open');
+    document.getElementById('kbd-close').focus();
+});
+document.getElementById('kbd-close')?.addEventListener('click', () => {
+    kbdOverlay.classList.remove('open');
+});
+kbdOverlay?.addEventListener('click', (e) => { if (e.target === kbdOverlay) kbdOverlay.classList.remove('open'); });
+
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const sectionEls = document.querySelectorAll('.forecast-section');
+    if (e.key === 'j' || e.key === 'k') {
+        e.preventDefault();
+        const scrollY = window.scrollY + 100;
+        let target = null;
+        const arr = Array.from(sectionEls);
+        if (e.key === 'j') {
+            target = arr.find(s => s.offsetTop > scrollY);
+        } else {
+            for (let i = arr.length - 1; i >= 0; i--) {
+                if (arr[i].offsetTop < scrollY - 50) { target = arr[i]; break; }
+            }
+        }
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (e.key === '/') {
+        e.preventDefault();
+        document.getElementById('office-select')?.focus();
+    } else if (e.key === '?') {
+        e.preventDefault();
+        kbdOverlay.classList.add('open');
+        document.getElementById('kbd-close').focus();
+    } else if (e.key === 'Escape') {
+        kbdOverlay.classList.remove('open');
+    }
+});
+
+// ─── Forecast history ───────────────────────────────────────────────
+let historyList = [];
+
+async function fetchHistoryList(office) {
+    try {
+        const res = await fetch(`https://api.weather.gov/products/types/AFD/locations/${office}`, {
+            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return (data['@graph'] || []).slice(0, 10).map(item => ({
+            id: item.id,
+            url: item['@id'] || `https://api.weather.gov/products/${item.id}`,
+            time: new Date(item.issuanceTime)
+        }));
+    } catch(e) { return []; }
+}
+
+function renderHistorySelector(items, currentId) {
+    let container = document.getElementById('history-selector');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'history-selector';
+        container.style.cssText = 'max-width:1200px;margin:0 auto;padding:0 2rem 0.5rem';
+        const confEl = document.getElementById('confidence-container');
+        if (confEl) confEl.after(container);
+    }
+    // Build select with DOM methods (no innerHTML for safety)
+    container.textContent = '';
+    const sel = document.createElement('select');
+    sel.id = 'history-select';
+    sel.style.cssText = 'font-family:var(--sans);font-size:0.8rem;border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.4rem;background:var(--bg);color:var(--text)';
+    const tz = OFFICE_TIMEZONES[currentOffice] || 'America/Los_Angeles';
+    if (items.length === 0) {
+        const opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = 'No previous forecasts';
+        sel.appendChild(opt);
+    } else {
+        items.forEach((item, i) => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            const label = item.time.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', weekday: 'short', month: 'short', day: 'numeric', timeZone: tz, timeZoneName: 'short' });
+            opt.textContent = (i === 0 ? 'Latest: ' : '') + label + ' (' + timeAgo(item.time) + ')';
+            if (item.id === currentId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+    sel.addEventListener('change', async () => {
+        const item = items.find(i => i.id === sel.value);
+        if (!item) return;
+        try {
+            const res = await fetch(item.url, { headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' } });
+            if (!res.ok) throw new Error('Fetch failed');
+            const prodData = await res.json();
+            renderAFD(prodData, currentOffice);
+        } catch(e) { console.warn('History fetch failed', e); }
+    });
+    container.appendChild(sel);
+}
+
+// Hook into renderAFD to load history
+const _origRenderAFD2 = renderAFD;
+renderAFD = async function(prodData, office) {
+    await _origRenderAFD2(prodData, office);
+    fetchHistoryList(office).then(items => {
+        historyList = items;
+        renderHistorySelector(items, prodData.id);
+    });
+};
 </script>
+
+<!-- Keyboard shortcuts overlay -->
+<div class="alert-modal-overlay" id="kbd-overlay">
+    <div class="alert-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+        <button class="alert-modal-close" id="kbd-close" aria-label="Close">&times;</button>
+        <h3 style="margin-bottom:1rem">Keyboard Shortcuts</h3>
+        <div style="font-family:var(--sans);font-size:0.85rem;line-height:2">
+            <div><kbd>j</kbd> Next section</div>
+            <div><kbd>k</kbd> Previous section</div>
+            <div><kbd>/</kbd> Search offices</div>
+            <div><kbd>?</kbd> Show this help</div>
+            <div><kbd>Esc</kbd> Close overlay</div>
+        </div>
+    </div>
+</div>
 
 <!-- Alert detail modal -->
 <div class="alert-modal-overlay" id="alert-modal-overlay">

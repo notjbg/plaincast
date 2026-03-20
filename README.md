@@ -37,8 +37,8 @@ Synopsis, Short Term, Long Term, Aviation, Marine, Beaches, Fire Weather, and Ac
 ### ⚠️ Active Alerts
 Current watches, warnings, and advisories formatted as a clean, color-coded bullet list with severity icons. Click any alert to see the full NWS detail in a modal.
 
-### 🏢 31 NWS Offices
-Los Angeles, New York, Chicago, Houston, Phoenix, Philadelphia, Dallas/Fort Worth, San Antonio, San Diego, San Francisco, Miami, Atlanta, Washington DC, Boston, Denver, Seattle, Portland, Las Vegas, Central California, Sacramento, Albuquerque, Grand Junction, Salt Lake City, Cleveland, Detroit, Indianapolis, Minneapolis/Twin Cities, Raleigh, Jacksonville, Honolulu, and Anchorage.
+### 🏢 68 NWS Offices
+Covering all US regions: Northeast (New York, Boston, Philadelphia, Washington DC, Pittsburgh, Buffalo, Raleigh, Charleston), Southeast (Atlanta, Miami, Jacksonville, Tampa Bay, Birmingham, Nashville, Morristown, Jackson), Midwest (Chicago, Detroit, Indianapolis, Cleveland, Cincinnati, Milwaukee, Grand Rapids, St. Louis, Kansas City, Des Moines), Northern Plains (Minneapolis, Duluth, Sioux Falls, Bismarck, Omaha, Grand Forks), South Central (Dallas/Fort Worth, Houston, San Antonio, Oklahoma City, Tulsa, Little Rock, New Orleans, Shreveport, Lake Charles), Rockies (Denver, Pueblo, Grand Junction, Salt Lake City, Boise, Billings, Missoula, Riverton), Southwest (Phoenix, Las Vegas, Tucson, Flagstaff, Albuquerque, El Paso), Pacific (Los Angeles, San Diego, San Francisco, Sacramento, Central CA, Eureka, Seattle, Portland, Medford, Spokane), and Alaska/Hawaii (Anchorage, Fairbanks, Honolulu).
 
 ---
 
@@ -65,7 +65,7 @@ Los Angeles, New York, Chicago, Houston, Phoenix, Philadelphia, Dallas/Fort Wort
 
 ## Technical Details
 
-- **Single-file app** - Everything in `docs/index.html` (~1,800 lines)
+- **Single-file app** - Everything in `docs/index.html` (~2,500 lines)
 - **Zero frontend dependencies** - Vanilla HTML/CSS/JS, no frameworks, no build step
 - **NWS API** - Pulls directly from `api.weather.gov` (no API key needed)
 - **AI summaries** - Claude Haiku via Vercel serverless with aggressive caching
