@@ -25,15 +25,19 @@ async function fetchAlerts(office) {
             // Match alerts from this office
             if (senderMatch && !(p.senderName || '').includes(senderMatch)) continue;
             const event = p.event;
+            const alertData = {
+                headline: p.headline || event,
+                description: p.description || '',
+                instruction: p.instruction || '',
+                severity: p.severity || '',
+                expires: p.expires || '',
+                areaDesc: p.areaDesc || ''
+            };
+            // Store as array to handle multiple alerts of the same type
             if (!alertMap[event]) {
-                alertMap[event] = {
-                    headline: p.headline || event,
-                    description: p.description || '',
-                    instruction: p.instruction || '',
-                    severity: p.severity || '',
-                    expires: p.expires || '',
-                    areaDesc: p.areaDesc || ''
-                };
+                alertMap[event] = [alertData];
+            } else {
+                alertMap[event].push(alertData);
             }
         }
         return alertMap;
@@ -479,7 +483,7 @@ function formatAlerts(text, alertMap) {
     let t = stripNWSArtifacts(text);
 
     // Split on known alert types to create individual items
-    const alertPattern = /((?:High Wind Watch|Wind Advisory|Flood Watch|High Surf Advisory|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado Watch|Tornado Warning|Severe Thunderstorm (?:Watch|Warning)|Flash Flood Warning|Blizzard Warning|Ice Storm Warning|Freeze Warning|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning)[^.]*\.?)/gi;
+    const alertPattern = /((?:High Wind (?:Watch|Warning)|Wind Advisory|Flood (?:Watch|Warning)|High Surf (?:Advisory|Warning)|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Winter Weather Advisory|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado (?:Watch|Warning)|Severe Thunderstorm (?:Watch|Warning)|Flash Flood (?:Watch|Warning)|Blizzard Warning|Ice Storm Warning|Freeze (?:Watch|Warning)|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning|Extreme (?:Heat|Cold) Warning|Wind Chill (?:Watch|Warning|Advisory)|Tropical Storm (?:Watch|Warning)|Hurricane (?:Watch|Warning)|Rip Current Statement|Coastal Flood (?:Watch|Warning|Advisory|Statement))[^.]*\.?)/gi;
 
     const matches = t.match(alertPattern);
     if (!matches || matches.length === 0) {
@@ -496,18 +500,26 @@ function formatAlerts(text, alertMap) {
         else if (/statement/i.test(item)) cls = 'alert-statement';
         // Severity icon for accessibility (not color-only)
         const icon = /warning/i.test(item) ? '⚠️ ' : /watch/i.test(item) ? '👁️ ' : /statement/i.test(item) ? 'ℹ️ ' : '🔹 ';
-        // Try to find matching alert detail
-        let alertData = null;
+        // Try to find matching alert details (alertMap values are arrays)
+        let alertEntries = null;
         if (alertMap) {
-            for (const [event, data] of Object.entries(alertMap)) {
-                if (item.toLowerCase().includes(event.toLowerCase())) { alertData = data; break; }
+            for (const [event, entries] of Object.entries(alertMap)) {
+                if (item.toLowerCase().includes(event.toLowerCase())) { alertEntries = entries; break; }
             }
         }
         let content;
-        if (alertData) {
+        if (alertEntries && alertEntries.length === 1) {
             const idx = alertIdx++;
-            ALERT_DATA[idx] = alertData;
+            ALERT_DATA[idx] = alertEntries[0];
             content = `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${item.replace(/"/g, '&quot;')}">${icon}${item}</button>`;
+        } else if (alertEntries && alertEntries.length > 1) {
+            // Multiple alerts of same type — show each with area info
+            content = alertEntries.map(ad => {
+                const idx = alertIdx++;
+                ALERT_DATA[idx] = ad;
+                const area = ad.areaDesc ? ` (${ad.areaDesc.split(';')[0].trim()})` : '';
+                return `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${item.replace(/"/g, '&quot;')}${area}">${icon}${item}${area}</button>`;
+            }).join('');
         } else {
             content = `${icon}${item}`;
         }
@@ -940,11 +952,14 @@ if ('serviceWorker' in navigator) {
     });
 })();
 
-// Auto-update "X minutes ago" every 60 seconds
+// Auto-update "X minutes ago" every 60 seconds (preserve forecaster attribution)
 setInterval(() => {
     if (!issueTimeDate) return;
     const el = document.getElementById('issue-time');
-    if (el) el.textContent = el.textContent.replace(/ - \d+.*$/, ` - ${timeAgo(issueTimeDate)}`);
+    if (el) {
+        // Match " - <time ago>" but stop before " · by" if present
+        el.textContent = el.textContent.replace(/ - \d+[^·]*?((?= · )|$)/, ` - ${timeAgo(issueTimeDate)}$1`);
+    }
 }, 60000);
 
 // ─── Share button ───────────────────────────────────────────────────
