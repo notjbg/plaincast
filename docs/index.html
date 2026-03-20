@@ -6,12 +6,15 @@
     <title>Plaincast - What the forecast actually says</title>
     <meta name="description" content="NWS meteorologists write the real forecasts 3-4x daily, but in dense shorthand. Plaincast uses AI to translate them into plain English anyone can read.">
     <meta name="keywords" content="NWS, weather forecast, Area Forecast Discussion, AFD, plain English, meteorology, National Weather Service, weather translation, jargon decoder">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0F766E">
     <meta name="author" content="Jonah Berg">
     <meta property="og:locale" content="en_US">
     <meta name="google-site-verification" content="IdNCtGpFPAc0ZPT6T41Z-KgfP-AzHr7qfAn-7asX96Y">
     <link rel="canonical" href="https://plaincast.live">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
     <script defer src="/_vercel/insights/script.js"></script>
     <script>
       // Apply theme before paint to prevent flash
@@ -174,7 +177,7 @@
 <div class="header">
     <div class="header-row">
         <h1>Plaincast</h1>
-        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">☀️</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode"><svg id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
         <select id="office-select">
             <optgroup label="Northeast">
                 <option value="OKX">New York (OKX)</option>

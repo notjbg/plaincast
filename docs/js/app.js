@@ -363,7 +363,7 @@ function displayConfidence(fullText) {
     // Map to label and color
     let label, color;
     if (score >= 75) { label = 'High'; color = '#16a34a'; }
-    else if (score >= 50) { label = 'Moderate'; color = '#2563eb'; }
+    else if (score >= 50) { label = 'Moderate'; color = '#0F766E'; }
     else if (score >= 30) { label = 'Mixed'; color = '#d97706'; }
     else { label = 'Low'; color = '#dc2626'; }
 
@@ -908,7 +908,7 @@ if (!urlOffice && !savedOffice && navigator.geolocation) {
                 if (issueEl) {
                     const flash = document.createElement('span');
                     flash.textContent = ' 📍 Detected';
-                    flash.style.cssText = 'color:var(--blue);font-size:0.8rem;transition:opacity 1s';
+                    flash.style.cssText = 'color:var(--teal);font-size:0.8rem;transition:opacity 1s';
                     issueEl.appendChild(flash);
                     setTimeout(() => { flash.style.opacity = '0'; }, 2000);
                     setTimeout(() => flash.remove(), 3000);
@@ -929,7 +929,14 @@ if ('serviceWorker' in navigator) {
 (function() {
     const toggle = document.getElementById('theme-toggle');
     function isDark() { return document.documentElement.classList.contains('dark'); }
-    function updateIcon() { toggle.textContent = isDark() ? '🌙' : '☀️'; }
+    function updateIcon() {
+        var sun = document.getElementById('theme-icon-sun');
+        var moon = document.getElementById('theme-icon-moon');
+        if (sun && moon) {
+            sun.style.display = isDark() ? 'none' : 'block';
+            moon.style.display = isDark() ? 'block' : 'none';
+        }
+    }
     updateIcon();
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     toggle.addEventListener('click', () => {
