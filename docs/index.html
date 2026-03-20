@@ -870,7 +870,8 @@
             .header-row select, .header-row button, .header-meta,
             .ai-toggle, .section-nav, .footer, .confidence,
             .banner, .explainer, .alert-modal-overlay,
-            .col-label, .annotated-col, .columns > div:last-child {
+            .col-label, .annotated-col, .columns > div:last-child,
+            .ai-loading, #history-selector, #kbd-overlay {
                 display: none !important;
             }
             .dark { --text: #1c1917; --text-light: #78716c; --bg: #ffffff; --border: #e7e5e4; --blue: #2563eb; --blue-light: #eff6ff; }
@@ -2191,19 +2192,24 @@ function render(sections) {
     }).join('');
 
     // Fire off AI translations with concurrency limit (2 at a time)
+    // Capture current generation to prevent stale writes if office changes mid-translation
+    const renderGen = fetchGeneration;
     const toTranslate = sections.filter(s => s.key !== 'Active Alerts');
     const concurrency = 2;
     let i = 0;
     async function translateNext() {
         while (i < toTranslate.length) {
             const s = toTranslate[i++];
+            if (renderGen !== fetchGeneration) return; // office changed, abort
             const el = document.getElementById(`section-${safeId(s.key)}`);
             if (!el) continue;
             const plainCol = el.querySelector('.plain-col');
             try {
                 const html = await fetchAITranslation(s.text, s.key, currentOffice);
+                if (renderGen !== fetchGeneration) return; // office changed during fetch
                 plainCol.innerHTML = html;
             } catch (err) {
+                if (renderGen !== fetchGeneration) return;
                 console.warn('AI translation failed for', s.key, err);
                 plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-light);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
             }
@@ -2522,6 +2528,8 @@ renderAFD = async function(prodData, office) {
 
 document.getElementById('refresh-load')?.addEventListener('click', () => {
     document.getElementById('refresh-banner').style.display = 'none';
+    // Clear cache so fetchAFD doesn't serve stale data
+    sessionStorage.removeItem(`afd-${currentOffice}`);
     fetchAFD(currentOffice);
 });
 document.getElementById('refresh-dismiss')?.addEventListener('click', () => {
