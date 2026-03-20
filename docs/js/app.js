@@ -1027,16 +1027,16 @@ afterRender.push(async (prodData, office) => {
             contextText += ` (${sign}${data.delta}\u00B0 vs ${new Date().toLocaleString('en-US', { month: 'long' })} avg)`;
         }
 
-        // Insert after takeaway, before confidence
+        // Insert into the forecast-meta strip
         let container = document.getElementById('seasonal-context');
         if (!container) {
-            container = document.createElement('div');
+            container = document.createElement('span');
             container.id = 'seasonal-context';
-            container.style.cssText = 'max-width:1200px;margin:0 auto;padding:0 2rem 0.5rem';
-            const takeaway = document.getElementById('takeaway-container');
-            if (takeaway) takeaway.after(container);
+            container.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;color:var(--text-light)';
+            const metaInner = document.querySelector('.forecast-meta-inner');
+            if (metaInner) metaInner.prepend(container);
         }
-        container.innerHTML = `<div style="font-family:var(--sans);font-size:0.85rem;color:var(--text-light)">${contextText}</div>`;
+        container.textContent = contextText;
     } catch (e) {
         // Silent fail — no context line shown
     }
@@ -1185,15 +1185,15 @@ function renderHistorySelector(items, currentId) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'history-selector';
-        container.style.cssText = 'max-width:1200px;margin:0 auto;padding:0 2rem 0.5rem';
-        const confEl = document.getElementById('confidence-container');
-        if (confEl) confEl.after(container);
+        container.style.cssText = 'margin-left:auto';
+        const metaInner = document.querySelector('.forecast-meta-inner');
+        if (metaInner) metaInner.appendChild(container);
     }
     // Build select with DOM methods (no innerHTML for safety)
     container.textContent = '';
     const sel = document.createElement('select');
     sel.id = 'history-select';
-    sel.style.cssText = 'font-family:var(--sans);font-size:0.8rem;border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.4rem;background:var(--bg);color:var(--text)';
+    sel.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.4rem;background:var(--bg-surface);color:var(--text)';
     const tz = OFFICE_TIMEZONES[currentOffice] || 'America/Los_Angeles';
     if (items.length === 0) {
         const opt = document.createElement('option');
