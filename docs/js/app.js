@@ -623,7 +623,7 @@ function render(sections) {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
             // Show loading spinner initially
-            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-light);font-family:var(--sans);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
+            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-muted);font-family:var(--sans);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
         }
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
@@ -665,7 +665,7 @@ function render(sections) {
             } catch (err) {
                 if (renderGen !== fetchGeneration) return;
                 console.warn('AI translation failed for', s.key, err);
-                plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-light);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
+                plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
             }
         }
     }
@@ -1032,7 +1032,7 @@ afterRender.push(async (prodData, office) => {
         if (!container) {
             container = document.createElement('span');
             container.id = 'seasonal-context';
-            container.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;color:var(--text-light)';
+            container.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted)';
             const metaInner = document.querySelector('.forecast-meta-inner');
             if (metaInner) metaInner.prepend(container);
         }
