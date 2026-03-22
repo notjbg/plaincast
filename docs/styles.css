@@ -669,7 +669,12 @@ body {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
+    padding: 0.5rem 0.25rem;
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .share-btn:hover, .kbd-hint:hover { color: var(--text); }
 .share-toast {
