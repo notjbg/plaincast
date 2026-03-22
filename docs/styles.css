@@ -535,8 +535,14 @@ body {
     display: flex;
     gap: 1.5rem;
     flex-wrap: wrap;
+    align-items: center;
 }
-.footer a { color: var(--text-muted); }
+.footer a {
+    color: var(--text-muted);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
 .footer-credit { margin-left: auto; }
 
 /* Theme toggle */
