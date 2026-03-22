@@ -55,6 +55,7 @@ body {
     font-weight: 400;
     letter-spacing: -0.02em;
     font-optical-sizing: auto;
+    text-wrap: balance;
 }
 .header-row {
     display: flex;
