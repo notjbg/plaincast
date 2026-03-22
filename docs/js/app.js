@@ -241,7 +241,7 @@ function translateToPlainEnglish(text) {
         if (subMatch) {
             const title = subMatch[1].trim();
             const body = subMatch[2].trim();
-            html += `<h4 class="sub-header">${title}</h4>`;
+            html += `<h3 class="sub-header">${title}</h3>`;
             if (body) html += `<p>${body}</p>`;
         } else if (!trimmed.match(/^§§§/)) {
             // Skip orphaned markers, render normal paragraphs
@@ -627,7 +627,7 @@ function render(sections) {
         }
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
-            <div class="section-title">${s.key}</div>
+            <h2 class="section-title">${s.key}</h2>
             <div class="ai-toggle">
                 <button class="ai-toggle-btn active" data-view="plain">Summary</button>
                 <button class="ai-toggle-btn" data-view="original">Original + Annotations</button>
