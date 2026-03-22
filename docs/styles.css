@@ -70,6 +70,10 @@ body {
     background: var(--bg-surface);
     color: var(--text);
 }
+.header select:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+}
 .issue-time {
     font-family: var(--font-ui);
     font-size: 0.8rem;
@@ -677,6 +681,17 @@ body {
     justify-content: center;
 }
 .share-btn:hover, .kbd-hint:hover { color: var(--text); }
+.share-btn:focus-visible, .kbd-hint:focus-visible,
+.theme-toggle:focus-visible,
+.section-nav a:focus-visible,
+.banner-action:focus-visible,
+.banner-dismiss:focus-visible,
+.alert-modal-close:focus-visible,
+.footer a:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
 .share-toast {
     font-family: var(--font-ui);
     font-size: 0.75rem;
