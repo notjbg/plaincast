@@ -16,7 +16,7 @@
 .skip-link:focus { top: 0; }
 
 :root {
-    color-scheme: light dark;
+    color-scheme: light;
     --text: #1c1917;
     --text-muted: #78716c;
     --text-secondary: #57534e;
@@ -578,6 +578,7 @@ body {
 
 /* ─── Dark mode ─── */
 .dark {
+    color-scheme: dark;
     --text: #E7E5E4;
     --text-muted: #A8A29E;
     --text-secondary: #78716c;
