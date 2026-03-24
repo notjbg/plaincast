@@ -541,14 +541,14 @@ function simpleHash(str) {
     return hash.toString(36);
 }
 
-async function fetchAITranslation(text, section, office) {
-    const key = simpleHash(text + '|' + section + '|' + office);
+async function fetchAITranslation(text, section, office, issuanceTime) {
+    const key = simpleHash(text + '|' + section + '|' + office + '|' + (issuanceTime || ''));
     if (aiCache[key]) return aiCache[key];
 
     const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, section, office })
+        body: JSON.stringify({ text, section, office, issuanceTime })
     });
     if (!res.ok) throw new Error('Translation failed');
     const data = await res.json();
@@ -597,7 +597,7 @@ function reorderSections(sections, office, hasAlerts) {
 }
 
 // ─── Render ─────────────────────────────────────────────────────────
-function render(sections) {
+function render(sections, productContext = {}) {
     const sectionsEl = document.getElementById('sections');
     const navEl = document.getElementById('section-nav');
     const takeawayContainer = document.getElementById('takeaway-container');
@@ -659,7 +659,7 @@ function render(sections) {
             if (!el) continue;
             const plainCol = el.querySelector('.plain-col');
             try {
-                const html = await fetchAITranslation(s.text, s.key, currentOffice);
+                const html = await fetchAITranslation(s.text, s.key, currentOffice, productContext.issuanceTime);
                 if (renderGen !== fetchGeneration) return; // office changed during fetch
                 plainCol.innerHTML = html;
             } catch (err) {
@@ -806,7 +806,7 @@ async function renderAFD(prodData, office) {
 
     // Fetch live alerts for linking (non-blocking — render first, update after)
     currentAlerts = {};
-    render(orderedSections);
+    render(orderedSections, { issuanceTime: prodData.issuanceTime });
 
     // Then fetch alerts and re-render the alerts section with links
     fetchAlerts(office).then(alertMap => {
