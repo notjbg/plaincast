@@ -22,6 +22,7 @@ export default async function handler(req, res) {
             const latest = listData['@graph']?.[0];
             if (latest) {
                 const prodUrl = latest['@id'] || `https://api.weather.gov/products/${latest.id}`;
+                if (!prodUrl.startsWith('https://api.weather.gov/')) throw new Error('Unexpected URL');
                 const prodRes = await fetch(prodUrl, {
                     headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
                 });

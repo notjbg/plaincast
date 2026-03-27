@@ -179,6 +179,14 @@ export default async function handler(req, res) {
     if (!text || text.length < 20) return res.status(400).json({ error: 'Text too short' });
     if (text.length > 10000) return res.status(400).json({ error: 'Text too long' });
 
+    // Validate section and office to prevent prompt injection via system prompt
+    if (section && (typeof section !== 'string' || section.length > 100)) {
+        return res.status(400).json({ error: 'Invalid section' });
+    }
+    if (office && (typeof office !== 'string' || !OFFICE_TIMEZONES[office.toUpperCase()])) {
+        return res.status(400).json({ error: 'Invalid office' });
+    }
+
     // Check translation cache first
     const cached = getCachedTranslation(text, section, office, issuanceTime);
     if (cached) {
