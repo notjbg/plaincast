@@ -623,7 +623,7 @@ function render(sections, productContext = {}) {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
             // Show loading spinner initially
-            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-muted);font-family:var(--sans);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
+            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-muted);font-family:var(--font-ui);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
         }
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
@@ -665,7 +665,7 @@ function render(sections, productContext = {}) {
             } catch (err) {
                 if (renderGen !== fetchGeneration) return;
                 console.warn('AI translation failed for', s.key, err);
-                plainCol.innerHTML = `<div style="font-family:var(--sans);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
+                plainCol.innerHTML = `<div style="font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
             }
         }
     }
@@ -757,10 +757,22 @@ async function fetchAFD(office) {
                 return;
             } catch(e) { console.warn('Stale cache fallback failed', e); }
         }
+        sectionsEl.textContent = '';
         const errDiv = document.createElement('div');
         errDiv.className = 'loading';
-        errDiv.textContent = `Error loading forecast: ${err.message}`;
-        sectionsEl.innerHTML = '';
+        const msg = document.createElement('div');
+        msg.style.cssText = 'font-family:var(--font-ui)';
+        msg.textContent = 'Couldn\u2019t load forecast. Check your connection and try again.';
+        errDiv.appendChild(msg);
+        const retryBtn = document.createElement('button');
+        retryBtn.style.cssText = 'margin-top:1rem;font-family:var(--font-ui);font-size:0.85rem;padding:0.35rem 1rem;border-radius:999px;border:1px solid var(--teal);background:none;color:var(--teal);cursor:pointer';
+        retryBtn.textContent = 'Retry';
+        retryBtn.addEventListener('click', () => fetchAFD(office));
+        errDiv.appendChild(retryBtn);
+        const detail = document.createElement('div');
+        detail.style.cssText = 'font-family:var(--font-ui);font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem';
+        detail.textContent = err.message;
+        errDiv.appendChild(detail);
         sectionsEl.appendChild(errDiv);
         console.error(err);
     }
@@ -879,6 +891,9 @@ function selectOffice(office, updateUrl) {
     }
     try { localStorage.setItem('plaincast-office', office); } catch(e) { /* quota */ }
     updateTitle(office);
+    // Update RSS auto-discovery link
+    const rssLink = document.getElementById('rss-link');
+    if (rssLink) rssLink.href = `/api/feed?office=${office}`;
     fetchAFD(office);
 }
 
@@ -981,7 +996,8 @@ document.getElementById('share-btn').addEventListener('click', async () => {
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2000);
     } catch(e) {
-        prompt('Copy this URL:', url);
+        // Fallback: select the URL in the address bar (no dialog)
+        window.getSelection()?.removeAllRanges();
     }
 });
 

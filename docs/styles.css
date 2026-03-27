@@ -602,25 +602,26 @@ body {
 .dark .takeaway-box {
     background: var(--teal-light);
 }
+/* Dark mode alert colors — matches DESIGN.md Semantic Colors */
 .dark .plain-col .alert-list li.alert-warning {
     background: rgba(220, 38, 38, 0.12);
-    border-left-color: #f87171;
-    color: #fca5a5;
+    border-left-color: #F87171;
+    color: #F87171;
 }
 .dark .plain-col .alert-list li.alert-watch {
     background: var(--amber-light);
     border-left-color: var(--amber);
-    color: #fcd34d;
+    color: var(--amber);
 }
 .dark .plain-col .alert-list li.alert-advisory {
     background: var(--teal-light);
     border-left-color: var(--teal);
-    color: #5eead4;
+    color: var(--teal);
 }
 .dark .plain-col .alert-list li.alert-statement {
     background: rgba(120, 113, 108, 0.12);
-    border-left-color: #78716c;
-    color: #a8a29e;
+    border-left-color: var(--text-muted);
+    color: var(--text-secondary);
 }
 .dark .alert-link { color: var(--teal); text-decoration-color: rgba(45, 212, 191, 0.4); }
 .dark .alert-link:hover { text-decoration-color: var(--teal); }

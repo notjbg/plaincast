@@ -204,3 +204,28 @@ export function computeConfidence(text) {
 
     return { score, label };
 }
+
+// ─── reorderSections ──────────────────────────────────────────────
+// Copied from docs/js/app.js — pure function, no DOM dependency.
+export function reorderSections(sections, office, hasAlerts) {
+    const priority = {
+        'Active Alerts': hasAlerts ? 0 : 99,
+        'Synopsis': 1,
+        'Short Term': 2,
+        'Long Term': 3,
+    };
+    const coastalOffices = new Set(['LOX','SGX','MTR','STO','EKA','SEW','PQR','MFR','OKX','BOX','PHI','MFL','JAX','TBW','CHS','HFO']);
+    if (coastalOffices.has(office)) {
+        priority['Marine'] = 3.5;
+        priority['Beaches'] = 3.6;
+    }
+    const fireOffices = new Set(['PSR','VEF','TWC','FGZ','BOU','BOI','MSO','RIW','LOX','SGX']);
+    if (fireOffices.has(office)) {
+        priority['Fire Weather'] = 3.5;
+    }
+    return [...sections].sort((a, b) => {
+        const pa = priority[a.key] ?? 50;
+        const pb = priority[b.key] ?? 50;
+        return pa - pb;
+    });
+}
