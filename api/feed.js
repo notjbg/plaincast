@@ -43,6 +43,7 @@ export default async function handler(req, res) {
         for (const item of items) {
             try {
                 const prodUrl = item['@id'] || `https://api.weather.gov/products/${item.id}`;
+                if (!prodUrl.startsWith('https://api.weather.gov/')) continue;
                 const prodRes = await fetch(prodUrl, {
                     headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
                 });
