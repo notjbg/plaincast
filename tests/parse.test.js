@@ -1,5 +1,4 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'bun:test';
 import { parseSections, extractTakeaway } from './helpers.js';
 
 // ─── Realistic AFD fixture ──────────────────────────────────────────
@@ -62,47 +61,57 @@ describe('parseSections', () => {
     it('should parse a standard AFD with multiple sections', () => {
         const { sections, forecaster } = parseSections(STANDARD_AFD);
 
-        assert.ok(sections.length >= 3, `Expected at least 3 sections, got ${sections.length}`);
+        // Expected at least 3 sections
+        expect(sections.length).toBeGreaterThanOrEqual(3);
 
         const keys = sections.map(s => s.key);
-        assert.ok(keys.includes('Synopsis'), `Missing Synopsis section; got: ${keys.join(', ')}`);
-        assert.ok(keys.includes('Short Term'), `Missing Short Term section; got: ${keys.join(', ')}`);
-        assert.ok(keys.includes('Aviation'), `Missing Aviation section; got: ${keys.join(', ')}`);
+        // Missing Synopsis section
+        expect(keys).toContain('Synopsis');
+        // Missing Short Term section
+        expect(keys).toContain('Short Term');
+        // Missing Aviation section
+        expect(keys).toContain('Aviation');
     });
 
     it('should extract section body text correctly', () => {
         const { sections } = parseSections(STANDARD_AFD);
         const synopsis = sections.find(s => s.key === 'Synopsis');
 
-        assert.ok(synopsis, 'Synopsis section should exist');
-        assert.ok(synopsis.text.includes('High pressure'), 'Synopsis should contain body text');
-        assert.ok(synopsis.text.includes('trough'), 'Synopsis should contain second sentence');
+        // Synopsis section should exist
+        expect(synopsis).toBeTruthy();
+        // Synopsis should contain body text
+        expect(synopsis.text).toContain('High pressure');
+        // Synopsis should contain second sentence
+        expect(synopsis.text).toContain('trough');
     });
 
     it('should parse AFD with office prefix headers (e.g. .LOX SYNOPSIS...)', () => {
         const { sections } = parseSections(OFFICE_PREFIX_AFD);
 
         const keys = sections.map(s => s.key);
-        assert.ok(keys.includes('Synopsis'), `Should map LOX SYNOPSIS to Synopsis; got: ${keys.join(', ')}`);
-        assert.ok(keys.includes('Short Term'), `Should map LOX SHORT TERM to Short Term; got: ${keys.join(', ')}`);
-        assert.ok(keys.includes('Active Alerts'), `Should map LOX WATCHES/WARNINGS/ADVISORIES to Active Alerts; got: ${keys.join(', ')}`);
+        // Should map LOX SYNOPSIS to Synopsis
+        expect(keys).toContain('Synopsis');
+        // Should map LOX SHORT TERM to Short Term
+        expect(keys).toContain('Short Term');
+        // Should map LOX WATCHES/WARNINGS/ADVISORIES to Active Alerts
+        expect(keys).toContain('Active Alerts');
     });
 
     it('should return empty sections for empty text', () => {
         const { sections, forecaster } = parseSections('');
 
-        assert.equal(sections.length, 0, 'Empty text should produce no sections');
-        assert.equal(forecaster, '', 'Empty text should produce no forecaster');
+        expect(sections.length).toBe(0);
+        expect(forecaster).toBe('');
     });
 
     it('should extract forecaster name from "Forecaster:" line', () => {
         const { forecaster } = parseSections(STANDARD_AFD);
-        assert.equal(forecaster, 'Martinez');
+        expect(forecaster).toBe('Martinez');
     });
 
     it('should extract FORECASTER name (uppercase variant)', () => {
         const { forecaster } = parseSections(MULTI_SECTION_AFD);
-        assert.equal(forecaster, 'Johnson');
+        expect(forecaster).toBe('Johnson');
     });
 
     it('should handle $$ delimiters between sections correctly', () => {
@@ -110,7 +119,7 @@ describe('parseSections', () => {
 
         // Each section text should NOT contain $$
         for (const s of sections) {
-            assert.ok(!s.text.includes('$$'), `Section "${s.key}" should not contain $$ delimiter`);
+            expect(s.text).not.toContain('$$');
         }
     });
 
@@ -118,7 +127,8 @@ describe('parseSections', () => {
         const { sections } = parseSections(MULTI_SECTION_AFD);
 
         for (const s of sections) {
-            assert.ok(!s.text.match(/^&&$/m), `Section "${s.key}" should not contain standalone && line`);
+            // Section should not contain standalone && line
+            expect(s.text.match(/^&&$/m)).toBeNull();
         }
     });
 
@@ -128,7 +138,7 @@ Rain moves in overnight with lows in the 40s.
 
 $$`;
         const { sections } = parseSections(afd);
-        assert.ok(sections.some(s => s.key === 'Short Term'), 'NEAR TERM should map to Short Term');
+        expect(sections.some(s => s.key === 'Short Term')).toBe(true);
     });
 
     it('should parse DISCUSSION as Synopsis', () => {
@@ -136,7 +146,7 @@ $$`;
 
 $$`;
         const { sections } = parseSections(afd);
-        assert.ok(sections.some(s => s.key === 'Synopsis'), 'DISCUSSION should map to Synopsis');
+        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
     });
 
     it('should parse EXTENDED as Long Term', () => {
@@ -145,7 +155,7 @@ Pattern becomes more active by the weekend.
 
 $$`;
         const { sections } = parseSections(afd);
-        assert.ok(sections.some(s => s.key === 'Long Term'), 'EXTENDED should map to Long Term');
+        expect(sections.some(s => s.key === 'Long Term')).toBe(true);
     });
 });
 
@@ -154,13 +164,13 @@ describe('extractTakeaway', () => {
         const { sections } = parseSections(STANDARD_AFD);
         const takeaway = extractTakeaway(sections);
 
-        assert.ok(takeaway.length > 0, 'Takeaway should not be empty');
-        assert.ok(takeaway.includes('High pressure'), 'Takeaway should include first sentence');
+        expect(takeaway.length).toBeGreaterThan(0);
+        expect(takeaway).toContain('High pressure');
     });
 
     it('should return empty string when no sections exist', () => {
         const takeaway = extractTakeaway([]);
-        assert.equal(takeaway, '');
+        expect(takeaway).toBe('');
     });
 
     it('should fall back to first section if no Synopsis exists', () => {
@@ -168,6 +178,6 @@ describe('extractTakeaway', () => {
             { key: 'Short Term', text: 'Warm and dry through Thursday. Cooling Friday.' }
         ];
         const takeaway = extractTakeaway(sections);
-        assert.ok(takeaway.includes('Warm and dry'), 'Should use first section as fallback');
+        expect(takeaway).toContain('Warm and dry');
     });
 });
