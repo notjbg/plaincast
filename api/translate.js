@@ -4,6 +4,43 @@
 import { generateText } from 'ai';
 import { OFFICE_TIMEZONES } from '../docs/js/offices.js';
 
+// Translation cache: keyed on hash(text + section + office), 4-hour TTL
+// Fluid Compute shares instances across concurrent requests, so this persists
+const translationCache = new Map();
+const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours (NWS issues AFDs ~3-4x daily)
+const CACHE_MAX = 500; // max entries to prevent unbounded growth
+
+function cacheKey(text, section, office, issuanceTime) {
+    let hash = 0;
+    const str = `${text}|${section}|${office}|${issuanceTime || ''}`;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash.toString(36);
+}
+
+function getCachedTranslation(text, section, office, issuanceTime) {
+    const key = cacheKey(text, section, office, issuanceTime);
+    const entry = translationCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.time > CACHE_TTL) {
+        translationCache.delete(key);
+        return null;
+    }
+    return entry.translation;
+}
+
+function setCachedTranslation(text, section, office, issuanceTime, translation) {
+    // Evict oldest entries if at capacity
+    if (translationCache.size >= CACHE_MAX) {
+        const oldest = translationCache.keys().next().value;
+        translationCache.delete(oldest);
+    }
+    const key = cacheKey(text, section, office, issuanceTime);
+    translationCache.set(key, { translation, time: Date.now() });
+}
+
 // Rate limiting: per-IP sliding window (defense-in-depth alongside gateway limits)
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000;
@@ -141,11 +178,18 @@ export default async function handler(req, res) {
     const { text, section, office, issuanceTime } = req.body;
     if (!text || text.length < 20) return res.status(400).json({ error: 'Text too short' });
     if (text.length > 10000) return res.status(400).json({ error: 'Text too long' });
+
+    // Check translation cache first
+    const cached = getCachedTranslation(text, section, office, issuanceTime);
+    if (cached) {
+        return res.status(200).json({ translation: cached, cached: true });
+    }
+
     const systemPrompt = buildSystemPrompt({ section, office, issuanceTime });
 
     try {
         const result = await generateText({
-            model: 'anthropic/claude-4.5-haiku',
+            model: 'anthropic/claude-haiku-4.5',
             system: systemPrompt,
             prompt: text,
             maxTokens: 1024,
@@ -162,6 +206,9 @@ export default async function handler(req, res) {
         if (result.finishReason === 'content-filter') {
             return res.status(503).json({ error: 'Translation skipped for this section', reason: 'content-filter' });
         }
+
+        // Cache successful translation for future requests
+        setCachedTranslation(text, section, office, issuanceTime, translation);
 
         return res.status(200).json({ translation, cached: false });
     } catch (err) {
