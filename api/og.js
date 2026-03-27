@@ -69,19 +69,19 @@ export default async function handler(req, res) {
     if (line) lines.push(line.trim());
 
     const takeawayLines = lines.map((l, i) =>
-        `<text x="60" y="${340 + i * 36}" fill="#78716c" font-size="24" font-family="Georgia, serif">${esc(l)}</text>`
+        `<text x="60" y="${340 + i * 36}" fill="#57534e" font-size="24" font-family="Georgia, 'Times New Roman', serif">${esc(l)}</text>`
     ).join('\n    ');
 
     const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="630" fill="#ffffff"/>
-  <rect x="0" y="0" width="6" height="630" fill="#2563eb"/>
-  <text x="60" y="120" fill="#1c1917" font-size="28" font-family="-apple-system, sans-serif" font-weight="600" letter-spacing="0.08em">PLAINCAST</text>
-  <text x="60" y="200" fill="#1c1917" font-size="52" font-family="Georgia, serif">${esc(cityName)} Forecast</text>
+  <rect width="1200" height="630" fill="#FAFAF5"/>
+  <rect x="0" y="0" width="6" height="630" fill="#0F766E"/>
+  <text x="60" y="120" fill="#1c1917" font-size="28" font-family="'DM Sans', -apple-system, sans-serif" font-weight="600" letter-spacing="0.08em">PLAINCAST</text>
+  <text x="60" y="200" fill="#1c1917" font-size="52" font-family="Georgia, 'Times New Roman', serif">${esc(cityName)} Forecast</text>
   <line x1="60" y1="240" x2="400" y2="240" stroke="#e7e5e4" stroke-width="1"/>
-  <rect x="60" y="270" width="1080" height="${lines.length * 36 + 40}" rx="6" fill="#eff6ff"/>
-  <text x="80" y="300" fill="#2563eb" font-size="12" font-family="-apple-system, sans-serif" font-weight="600" letter-spacing="0.08em">KEY TAKEAWAY</text>
+  <rect x="60" y="270" width="1080" height="${lines.length * 36 + 40}" rx="6" fill="#F0FDFA"/>
+  <text x="80" y="300" fill="#0F766E" font-size="12" font-family="'DM Sans', -apple-system, sans-serif" font-weight="600" letter-spacing="0.08em">KEY TAKEAWAY</text>
     ${takeawayLines}
-  <text x="60" y="580" fill="#78716c" font-size="18" font-family="-apple-system, sans-serif">plaincast.live · What the forecast actually says</text>
+  <text x="60" y="580" fill="#78716c" font-size="18" font-family="'DM Sans', -apple-system, sans-serif">plaincast.live · What the forecast actually says</text>
 </svg>`;
 
     res.setHeader('Content-Type', 'image/svg+xml');
