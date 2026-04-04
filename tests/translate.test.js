@@ -132,6 +132,14 @@ describe('stripAIArtifacts', () => {
         expect(result).toContain('MVFR');
     });
 
+    it('should strip fenced code block delimiters but preserve enclosed text', () => {
+        const input = '```\nWarm and dry through Thursday.\nCooling trend Friday.\n```';
+        const result = stripAIArtifacts(input);
+        expect(result).not.toContain('```');
+        expect(result).toContain('Warm and dry through Thursday.');
+        expect(result).toContain('Cooling trend Friday.');
+    });
+
     it('should strip "KEY Message 1." prefixes', () => {
         const result = stripAIArtifacts('KEY Message 1. A warm front is advancing.');
         expect(result).not.toContain('KEY Message');

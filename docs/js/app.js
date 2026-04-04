@@ -115,7 +115,7 @@ function stripAIArtifacts(text) {
     let t = text;
     t = t.replace(/^#{1,3}\s+.*$/gm, '');     // ## headers, ### sub-headers
     t = t.replace(/^---+\s*$/gm, '');           // --- horizontal rules
-    t = t.replace(/^`{3}[^\n]*\n[\s\S]*?^`{3}\s*$/gm, ''); // fenced code blocks (multiline)
+    t = t.replace(/^`{3}[^\n]*$/gm, '');                     // strip fenced code block delimiters, keep enclosed text
     t = t.replace(/`{1,3}([^`\n]*)`{1,3}/g, '$1');         // inline backticks, keep content
     t = t.replace(/^\s*(?:[Kk][Ee][Yy]\s+)?[Mm]essage\s+\d+[.:]\s*/gm, ''); // "KEY Message 1." / "Key message 1:"
     t = t.replace(/\n{3,}/g, '\n\n');            // collapse excess newlines from removed lines

@@ -12,7 +12,7 @@ export function stripAIArtifacts(text) {
     let t = text;
     t = t.replace(/^#{1,3}\s+.*$/gm, '');
     t = t.replace(/^---+\s*$/gm, '');
-    t = t.replace(/^`{3}[^\n]*\n[\s\S]*?^`{3}\s*$/gm, '');
+    t = t.replace(/^`{3}[^\n]*$/gm, '');
     t = t.replace(/`{1,3}([^`\n]*)`{1,3}/g, '$1');
     t = t.replace(/^\s*(?:[Kk][Ee][Yy]\s+)?[Mm]essage\s+\d+[.:]\s*/gm, '');
     t = t.replace(/\n{3,}/g, '\n\n');
