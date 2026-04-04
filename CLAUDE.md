@@ -1,5 +1,29 @@
 # Plaincast
 
+## Project Structure
+```
+docs/              Static frontend (served as outputDirectory)
+  index.html       Markup (~360 loc)
+  styles.css       All CSS
+  js/app.js        Main app logic
+  js/glossary.js   240+ term glossary
+  js/offices.js    68 NWS office data
+  js/abbreviations.js  109 abbreviation patterns
+  js/diff.js       Forecast diff engine
+  sw.js            Service worker
+  manifest.json    PWA manifest
+api/               Vercel serverless functions
+  translate.js     AI translation (AI Gateway + Claude)
+  feed.js          RSS per office
+  og.js            Dynamic OG images
+  conditions.js    Current weather + averages
+tests/             Bun test suite (74 tests)
+```
+
+## Commands
+- `bun test tests/` — run all tests
+- `cd docs && python3 -m http.server 8765` — local dev (AI summaries need Vercel)
+
 ## Design System
 Always read DESIGN.md before making any visual or UI decisions.
 All font choices, colors, spacing, and aesthetic direction are defined there.
