@@ -17,6 +17,18 @@ describe('translate prompt calendar context', () => {
         expect(context.monthBoundaryExample).toMatch(/"31st and 1st".*December 31.*January 1/i);
     });
 
+    it('bans markdown headers and horizontal rules from output', () => {
+        const prompt = buildSystemPrompt({
+            section: 'Synopsis',
+            office: 'LOX',
+            issuanceTime: '2026-03-24T18:25:00+00:00',
+        });
+
+        expect(prompt).toMatch(/Do NOT use markdown headers/i);
+        expect(prompt).toMatch(/horizontal rules/i);
+        expect(prompt).toMatch(/prose paragraphs only/i);
+    });
+
     it('tells the model not to invent months when the source is ambiguous', () => {
         const prompt = buildSystemPrompt({
             section: 'Long Term',

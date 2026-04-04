@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseSections, extractTakeaway } from './helpers.js';
+import { parseSections, extractTakeaway, stripAIArtifacts } from './helpers.js';
 
 // ─── Realistic AFD fixture ──────────────────────────────────────────
 const STANDARD_AFD = `.SYNOPSIS...High pressure will maintain dry and warm conditions through midweek.
@@ -159,6 +159,63 @@ $$`;
     });
 });
 
+// ─── Jan 2026 Key Messages format (real GSP structure) ──────────────
+const KEY_MESSAGES_AFD = `.WHAT HAS CHANGED...
+Adjusted tonight's forecast based on latest trends.
+
+&&
+
+.KEY MESSAGES...
+1. Well above normal and humid with isolated showers possible through Saturday.
+2. Cold front Sunday will bring best chance for rainfall.
+
+&&
+
+.DISCUSSION...
+Bermuda high lingers over the region through Saturday.
+
+&&
+
+.AVIATION /00Z SATURDAY THROUGH WEDNESDAY/...
+VFR conditions expected through the period.
+
+&&
+
+.GSP WATCHES/WARNINGS/ADVISORIES...
+None.
+
+&&
+
+$$`;
+
+describe('parseSections — Jan 2026 Key Messages format', () => {
+    it('should parse .KEY MESSAGES... as Messages section', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        expect(sections.some(s => s.key === 'Messages')).toBe(true);
+    });
+
+    it('should parse .WHAT HAS CHANGED... section', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        expect(sections.some(s => s.key === 'What has changed')).toBe(true);
+    });
+
+    it('should parse .DISCUSSION... as Synopsis', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
+        const syn = sections.find(s => s.key === 'Synopsis');
+        expect(syn.text).toContain('Bermuda high');
+    });
+
+    it('should parse .MESSAGES... as Messages section', () => {
+        const afd = `.MESSAGES...
+Heavy snow expected above 5000 ft.
+
+$$`;
+        const { sections } = parseSections(afd);
+        expect(sections.some(s => s.key === 'Messages')).toBe(true);
+    });
+});
+
 describe('extractTakeaway', () => {
     it('should extract first 1-2 sentences from synopsis', () => {
         const { sections } = parseSections(STANDARD_AFD);
@@ -179,5 +236,17 @@ describe('extractTakeaway', () => {
         ];
         const takeaway = extractTakeaway(sections);
         expect(takeaway).toContain('Warm and dry');
+    });
+});
+
+describe('extractTakeaway + stripAIArtifacts', () => {
+    it('should strip KEY Message prefix from takeaway output', () => {
+        const sections = [
+            { key: 'Synopsis', text: 'KEY Message 1. A warm front is advancing north. Showers likely tonight.' }
+        ];
+        const takeaway = extractTakeaway(sections);
+        const stripped = stripAIArtifacts(takeaway);
+        expect(stripped).not.toContain('KEY Message');
+        expect(stripped).toContain('warm front');
     });
 });
