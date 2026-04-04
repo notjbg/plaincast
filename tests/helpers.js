@@ -72,6 +72,16 @@ export function parseSections(text) {
             if (!forecaster) forecaster = fm[1].trim();
             s.text = s.text.replace(fm[0], '').trim();
         }
+        // Strip bare forecaster signatures (short name on its own line at end of section)
+        const bareNameMatch = s.text.match(/\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
+        if (bareNameMatch) {
+            const candidate = bareNameMatch[1].trim();
+            const words = candidate.split(/\s+/);
+            if (words.length <= 3 && !/\d/.test(candidate) && candidate.length <= 20) {
+                if (!forecaster) forecaster = candidate;
+                s.text = s.text.replace(bareNameMatch[0], '').trim();
+            }
+        }
     }
 
     return { sections, forecaster };
@@ -82,9 +92,17 @@ export function parseSections(text) {
 // section (or first section) without running full translation (which
 // would need timezone state). Returns raw text for testing purposes.
 export function extractTakeaway(sections) {
+    // Prefer KEY MESSAGES section when available
+    const messagesSection = sections.find(s => s.key === 'Messages');
+    if (messagesSection) {
+        const text = messagesSection.text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+        return text;
+    }
     const synSection = sections.find(s => s.key === 'Synopsis') || sections[0];
     if (!synSection) return '';
-    const text = synSection.text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+    // Strip leading "Issued at..." timestamps
+    let text = synSection.text.replace(/^Issued at \d.+?\d{4}\s*/i, '');
+    text = text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
     const sentences = text.match(/[^.!?]+[.!?]+/g);
     if (!sentences) return text.substring(0, 200);
     return sentences.slice(0, 2).join(' ').trim();

@@ -237,6 +237,37 @@ describe('extractTakeaway', () => {
         const takeaway = extractTakeaway(sections);
         expect(takeaway).toContain('Warm and dry');
     });
+
+    it('should prefer Messages section over Synopsis for takeaway', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        const takeaway = extractTakeaway(sections);
+        expect(takeaway).toContain('above normal');
+        expect(takeaway).not.toContain('Bermuda high');
+    });
+
+    it('should strip "Issued at..." timestamp from Synopsis fallback', () => {
+        const sections = [
+            { key: 'Synopsis', text: 'Issued at 225 PM CDT Fri Apr 3 2026\nPrimary concern is heavy rain. Cold front approaching.' }
+        ];
+        const takeaway = extractTakeaway(sections);
+        expect(takeaway).not.toContain('Issued at');
+        expect(takeaway).toContain('Primary concern');
+    });
+});
+
+describe('parseSections — bare forecaster name', () => {
+    it('should strip bare forecaster name at end of section', () => {
+        const afd = `.UPDATE...\nHeavy rain expected tonight.\n\nDoom\n\n&&\n\n$$`;
+        const { sections, forecaster } = parseSections(afd);
+        expect(sections[0].text).not.toContain('Doom');
+        expect(forecaster).toBe('Doom');
+    });
+
+    it('should not strip long lines that look like content', () => {
+        const afd = `.UPDATE...\nDoom and gloom forecast for the weekend ahead.\n\n$$`;
+        const { sections } = parseSections(afd);
+        expect(sections[0].text).toContain('Doom and gloom');
+    });
 });
 
 describe('extractTakeaway + stripAIArtifacts', () => {

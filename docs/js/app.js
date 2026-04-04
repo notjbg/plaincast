@@ -102,6 +102,18 @@ function parseSections(text) {
             if (!forecaster) forecaster = fm[1].trim();
             s.text = s.text.replace(fm[0], '').trim();
         }
+        // Strip bare forecaster signatures (short name on its own line at end of section)
+        // Many NWS offices sign with just a name (e.g. "Doom", "Smith") before &&
+        const bareNameMatch = s.text.match(/\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
+        if (bareNameMatch) {
+            const candidate = bareNameMatch[1].trim();
+            // Must be short (≤3 words), not look like forecast content
+            const words = candidate.split(/\s+/);
+            if (words.length <= 3 && !/\d/.test(candidate) && candidate.length <= 20) {
+                if (!forecaster) forecaster = candidate;
+                s.text = s.text.replace(bareNameMatch[0], '').trim();
+            }
+        }
     }
 
     return { sections, forecaster };
@@ -295,11 +307,19 @@ function annotateText(text) {
 
 // ─── Key Takeaway extraction ────────────────────────────────────────
 function extractTakeaway(sections) {
-    // Use synopsis, or first section
+    // Prefer KEY MESSAGES section (used by many NWS offices like LOT)
+    const messagesSection = sections.find(s => s.key === 'Messages');
+    if (messagesSection) {
+        const text = messagesSection.text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+        // KEY MESSAGES are already concise bullet points — use them directly
+        return stripAIArtifacts(translateToPlainEnglish(text).replace(/<\/?p>/g, ''));
+    }
+    // Fall back to synopsis, or first section
     const synSection = sections.find(s => s.key === 'Synopsis') || sections[0];
     if (!synSection) return '';
-    // Take first 1-2 sentences
-    const text = synSection.text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+    // Strip leading "Issued at..." timestamps that some offices embed in DISCUSSION
+    let text = synSection.text.replace(/^Issued at \d.+?\d{4}\s*/i, '');
+    text = text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
     const sentences = text.match(/[^.!?]+[.!?]+/g);
     if (!sentences) return text.substring(0, 200);
     const takeaway = sentences.slice(0, 2).join(' ').trim();
