@@ -141,12 +141,12 @@ $$`;
         expect(sections.some(s => s.key === 'Short Term')).toBe(true);
     });
 
-    it('should parse DISCUSSION as Synopsis', () => {
+    it('should parse DISCUSSION as Discussion', () => {
         const afd = `.DISCUSSION...An upper-level trough will deepen over the region.
 
 $$`;
         const { sections } = parseSections(afd);
-        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
+        expect(sections.some(s => s.key === 'Discussion')).toBe(true);
     });
 
     it('should parse EXTENDED as Long Term', () => {
@@ -199,11 +199,11 @@ describe('parseSections — Jan 2026 Key Messages format', () => {
         expect(sections.some(s => s.key === 'What has changed')).toBe(true);
     });
 
-    it('should parse .DISCUSSION... as Synopsis', () => {
+    it('should parse .DISCUSSION... as Discussion', () => {
         const { sections } = parseSections(KEY_MESSAGES_AFD);
-        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
-        const syn = sections.find(s => s.key === 'Synopsis');
-        expect(syn.text).toContain('Bermuda high');
+        expect(sections.some(s => s.key === 'Discussion')).toBe(true);
+        const disc = sections.find(s => s.key === 'Discussion');
+        expect(disc.text).toContain('Bermuda high');
     });
 
     it('should parse .MESSAGES... as Messages section', () => {
@@ -236,6 +236,44 @@ describe('extractTakeaway', () => {
         ];
         const takeaway = extractTakeaway(sections);
         expect(takeaway).toContain('Warm and dry');
+    });
+
+    it('should prefer Messages section over Synopsis for takeaway', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        const takeaway = extractTakeaway(sections);
+        expect(takeaway).toContain('above normal');
+        expect(takeaway).not.toContain('Bermuda high');
+    });
+
+    it('should strip "Issued at..." timestamp from Synopsis fallback', () => {
+        const sections = [
+            { key: 'Synopsis', text: 'Issued at 225 PM CDT Fri Apr 3 2026\nPrimary concern is heavy rain. Cold front approaching.' }
+        ];
+        const takeaway = extractTakeaway(sections);
+        expect(takeaway).not.toContain('Issued at');
+        expect(takeaway).toContain('Primary concern');
+    });
+});
+
+describe('parseSections — bare forecaster name', () => {
+    it('should strip bare forecaster name preceded by blank line', () => {
+        const afd = `.UPDATE...\nHeavy rain expected tonight.\n\nDoom\n\n&&\n\n$$`;
+        const { sections, forecaster } = parseSections(afd);
+        expect(sections[0].text).not.toContain('Doom');
+        expect(forecaster).toBe('Doom');
+    });
+
+    it('should not strip short wrapped forecast text without blank line', () => {
+        const afd = `.UPDATE...\nRain ends by dawn.\nPatchy fog\n\n$$`;
+        const { sections, forecaster } = parseSections(afd);
+        expect(sections[0].text).toContain('Patchy fog');
+        expect(forecaster).toBe('');
+    });
+
+    it('should not strip long lines that look like content', () => {
+        const afd = `.UPDATE...\nDoom and gloom forecast for the weekend ahead.\n\n$$`;
+        const { sections } = parseSections(afd);
+        expect(sections[0].text).toContain('Doom and gloom');
     });
 });
 

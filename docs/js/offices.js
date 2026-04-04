@@ -154,7 +154,7 @@ export const OFFICE_SENDER = {
 // Canonical section-header mapping (raw NWS header → display name)
 export const SECTION_NAMES = {
     'SYNOPSIS': 'Synopsis',
-    'DISCUSSION': 'Synopsis',
+    'DISCUSSION': 'Discussion',
     'SHORT TERM': 'Short Term',
     'NEAR TERM': 'Short Term',
     'LONG TERM': 'Long Term',
