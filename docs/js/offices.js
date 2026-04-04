@@ -165,4 +165,7 @@ export const SECTION_NAMES = {
     'FIRE WEATHER': 'Fire Weather',
     'LOX WATCHES/WARNINGS/ADVISORIES': 'Active Alerts',
     'WATCHES/WARNINGS/ADVISORIES': 'Active Alerts',
+    'KEY MESSAGES': 'Messages',
+    'WHAT HAS CHANGED': 'What has changed',
+    'MESSAGES': 'Messages',
 };
