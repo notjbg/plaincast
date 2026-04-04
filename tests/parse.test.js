@@ -256,11 +256,18 @@ describe('extractTakeaway', () => {
 });
 
 describe('parseSections — bare forecaster name', () => {
-    it('should strip bare forecaster name at end of section', () => {
+    it('should strip bare forecaster name preceded by blank line', () => {
         const afd = `.UPDATE...\nHeavy rain expected tonight.\n\nDoom\n\n&&\n\n$$`;
         const { sections, forecaster } = parseSections(afd);
         expect(sections[0].text).not.toContain('Doom');
         expect(forecaster).toBe('Doom');
+    });
+
+    it('should not strip short wrapped forecast text without blank line', () => {
+        const afd = `.UPDATE...\nRain ends by dawn.\nPatchy fog\n\n$$`;
+        const { sections, forecaster } = parseSections(afd);
+        expect(sections[0].text).toContain('Patchy fog');
+        expect(forecaster).toBe('');
     });
 
     it('should not strip long lines that look like content', () => {

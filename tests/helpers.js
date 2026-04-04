@@ -73,7 +73,8 @@ export function parseSections(text) {
             s.text = s.text.replace(fm[0], '').trim();
         }
         // Strip bare forecaster signatures (short name on its own line at end of section)
-        const bareNameMatch = s.text.match(/\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
+        // Require a blank line before the name to avoid stripping wrapped forecast text
+        const bareNameMatch = s.text.match(/\n\s*\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
         if (bareNameMatch) {
             const candidate = bareNameMatch[1].trim();
             const words = candidate.split(/\s+/);

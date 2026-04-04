@@ -96,6 +96,14 @@ describe('computeDiff', () => {
         expect(marine.status).toBe('added');
     });
 
+    it('should match Synopsis↔Discussion as equivalent keys', () => {
+        const prev = [{ key: 'Synopsis', text: 'Same discussion text.' }];
+        const curr = [{ key: 'Discussion', text: 'Same discussion text.' }];
+        const diffs = computeDiff(prev, curr);
+        expect(diffs.length).toBe(1);
+        expect(diffs[0].status).toBe('unchanged');
+    });
+
     it('should handle empty previous sections', () => {
         const prev = [];
         const curr = [{ key: 'Synopsis', text: 'First forecast.' }];

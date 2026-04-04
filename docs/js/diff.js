@@ -75,6 +75,10 @@ function splitParagraphs(text) {
  * @returns {Array<{key: string, status: string, oldText: string, newText: string, changes: Array}>}
  */
 export function computeDiff(oldSections, newSections) {
+    // Key equivalence: DISCUSSION was previously mapped to "Synopsis"
+    // so cached sessionStorage may use the old key name
+    const KEY_ALIASES = { 'Synopsis': 'Discussion', 'Discussion': 'Synopsis' };
+
     // Build lookup maps by key
     const oldMap = new Map();
     for (const s of oldSections) {
@@ -92,7 +96,13 @@ export function computeDiff(oldSections, newSections) {
     // Process sections in the order they appear in the new forecast
     for (const s of newSections) {
         seenKeys.add(s.key);
-        const oldText = oldMap.get(s.key);
+        let oldText = oldMap.get(s.key);
+        // Check alias (handles Synopsis↔Discussion rename in cached data)
+        const alias = KEY_ALIASES[s.key];
+        if (oldText === undefined && alias) {
+            oldText = oldMap.get(alias);
+            if (oldText !== undefined) seenKeys.add(alias);
+        }
 
         if (oldText === undefined) {
             // Section is new — not present in old forecast

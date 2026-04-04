@@ -104,7 +104,8 @@ function parseSections(text) {
         }
         // Strip bare forecaster signatures (short name on its own line at end of section)
         // Many NWS offices sign with just a name (e.g. "Doom", "Smith") before &&
-        const bareNameMatch = s.text.match(/\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
+        // Require a blank line before the name to avoid stripping wrapped forecast text
+        const bareNameMatch = s.text.match(/\n\s*\n\s*([A-Za-z][A-Za-z .'-]{0,25})\s*$/);
         if (bareNameMatch) {
             const candidate = bareNameMatch[1].trim();
             // Must be short (≤3 words), not look like forecast content
