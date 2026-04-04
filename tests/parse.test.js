@@ -141,12 +141,12 @@ $$`;
         expect(sections.some(s => s.key === 'Short Term')).toBe(true);
     });
 
-    it('should parse DISCUSSION as Synopsis', () => {
+    it('should parse DISCUSSION as Discussion', () => {
         const afd = `.DISCUSSION...An upper-level trough will deepen over the region.
 
 $$`;
         const { sections } = parseSections(afd);
-        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
+        expect(sections.some(s => s.key === 'Discussion')).toBe(true);
     });
 
     it('should parse EXTENDED as Long Term', () => {
@@ -199,11 +199,11 @@ describe('parseSections — Jan 2026 Key Messages format', () => {
         expect(sections.some(s => s.key === 'What has changed')).toBe(true);
     });
 
-    it('should parse .DISCUSSION... as Synopsis', () => {
+    it('should parse .DISCUSSION... as Discussion', () => {
         const { sections } = parseSections(KEY_MESSAGES_AFD);
-        expect(sections.some(s => s.key === 'Synopsis')).toBe(true);
-        const syn = sections.find(s => s.key === 'Synopsis');
-        expect(syn.text).toContain('Bermuda high');
+        expect(sections.some(s => s.key === 'Discussion')).toBe(true);
+        const disc = sections.find(s => s.key === 'Discussion');
+        expect(disc.text).toContain('Bermuda high');
     });
 
     it('should parse .MESSAGES... as Messages section', () => {

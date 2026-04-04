@@ -314,8 +314,10 @@ function extractTakeaway(sections) {
         // KEY MESSAGES are already concise bullet points — use them directly
         return stripAIArtifacts(translateToPlainEnglish(text).replace(/<\/?p>/g, ''));
     }
-    // Fall back to synopsis, or first section
-    const synSection = sections.find(s => s.key === 'Synopsis') || sections[0];
+    // Fall back to synopsis or discussion, or first section
+    const synSection = sections.find(s => s.key === 'Synopsis')
+        || sections.find(s => s.key === 'Discussion')
+        || sections[0];
     if (!synSection) return '';
     // Strip leading "Issued at..." timestamps that some offices embed in DISCUSSION
     let text = synSection.text.replace(/^Issued at \d.+?\d{4}\s*/i, '');
@@ -608,7 +610,11 @@ function reorderSections(sections, office, hasAlerts) {
     const priority = {
         'Active Alerts': hasAlerts ? 0 : 99,
         'Synopsis': 1,
+        'Messages': 1.5,
+        'What has changed': 1.8,
+        'Update': 1.9,
         'Short Term': 2,
+        'Discussion': 2,
         'Long Term': 3,
     };
 

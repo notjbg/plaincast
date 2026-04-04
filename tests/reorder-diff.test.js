@@ -43,6 +43,23 @@ describe('reorderSections', () => {
         expect(fireIdx).toBeLessThan(aviationIdx);
     });
 
+    it('should order Key Messages format: Messages before Discussion', () => {
+        const sections = makeSections('Discussion', 'Messages', 'Update', 'Active Alerts', 'Aviation');
+        const result = reorderSections(sections, 'LOT', true);
+        const keys = result.map(s => s.key);
+        expect(keys.indexOf('Active Alerts')).toBeLessThan(keys.indexOf('Messages'));
+        expect(keys.indexOf('Messages')).toBeLessThan(keys.indexOf('Discussion'));
+        expect(keys.indexOf('Discussion')).toBeLessThan(keys.indexOf('Aviation'));
+    });
+
+    it('should order What has changed after Messages', () => {
+        const sections = makeSections('Discussion', 'What has changed', 'Messages', 'Active Alerts');
+        const result = reorderSections(sections, 'GSP', true);
+        const keys = result.map(s => s.key);
+        expect(keys.indexOf('Messages')).toBeLessThan(keys.indexOf('What has changed'));
+        expect(keys.indexOf('What has changed')).toBeLessThan(keys.indexOf('Discussion'));
+    });
+
     it('should not elevate Marine for inland offices', () => {
         const sections = makeSections('Synopsis', 'Short Term', 'Marine');
         const result = reorderSections(sections, 'BOU', false); // Denver — inland

@@ -98,7 +98,9 @@ export function extractTakeaway(sections) {
         const text = messagesSection.text.replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
         return text;
     }
-    const synSection = sections.find(s => s.key === 'Synopsis') || sections[0];
+    const synSection = sections.find(s => s.key === 'Synopsis')
+        || sections.find(s => s.key === 'Discussion')
+        || sections[0];
     if (!synSection) return '';
     // Strip leading "Issued at..." timestamps
     let text = synSection.text.replace(/^Issued at \d.+?\d{4}\s*/i, '');
@@ -243,7 +245,11 @@ export function reorderSections(sections, office, hasAlerts) {
     const priority = {
         'Active Alerts': hasAlerts ? 0 : 99,
         'Synopsis': 1,
+        'Messages': 1.5,
+        'What has changed': 1.8,
+        'Update': 1.9,
         'Short Term': 2,
+        'Discussion': 2,
         'Long Term': 3,
     };
     const coastalOffices = new Set(['LOX','SGX','MTR','STO','EKA','SEW','PQR','MFR','OKX','BOX','PHI','MFL','JAX','TBW','CHS','HFO']);
