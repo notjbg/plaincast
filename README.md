@@ -20,7 +20,7 @@ Plaincast uses Anthropic's Claude to summarize them into plain English, displaye
 Every forecast section is summarized by Claude (Haiku) into natural, readable prose. Not just abbreviation expansion - actual explanation of *why* weather is happening, what the models show, and what it means for you. Falls back to regex translation if the API is unavailable.
 
 ### 📖 Side-by-Side Layout
-AI summary on the left, original AFD with jargon annotations on the right. Every highlighted term in the original has a hover tooltip (or tap on mobile) explaining what it means. 150+ term glossary covering synoptic meteorology, aviation, marine, pressure levels, model names, and airport codes.
+AI summary on the left, original AFD with jargon annotations on the right. Every highlighted term in the original has a hover tooltip (or tap on mobile) explaining what it means. 240+ term glossary covering synoptic meteorology, aviation, marine, pressure levels, model names, and airport codes, plus 109 abbreviation expansion patterns.
 
 ### ⚡ Key Takeaway
 Bold 1-2 sentence summary at the top extracting what matters most from the Synopsis. Skip the details when you just need the headline.
@@ -32,7 +32,7 @@ Visual indicator analyzing the AFD's language for certainty vs. uncertainty sign
 Days of the week, hazard terms, temperatures, rainfall amounts, and wind speeds are bolded for skimmability.
 
 ### 🗂️ Section Parsing
-Synopsis, Short Term, Long Term, Aviation, Marine, Beaches, Fire Weather, and Active Alerts all rendered as separate sections with pill-style jump navigation.
+Synopsis, Discussion, Short Term, Long Term, Aviation, Marine, Beaches, Fire Weather, Key Messages, and Active Alerts all rendered as separate sections with pill-style jump navigation.
 
 ### ⚠️ Active Alerts
 Current watches, warnings, and advisories formatted as a clean, color-coded bullet list with severity icons. Click any alert to see the full NWS detail in a modal.
@@ -50,7 +50,7 @@ Covering all US regions: Northeast (New York, Boston, Philadelphia, Washington D
 │    ├─ index.html        (markup only, ~350 loc) │
 │    ├─ styles.css        (all CSS)               │
 │    ├─ js/app.js         (main app logic)        │
-│    ├─ js/glossary.js    (270+ term glossary)    │
+│    ├─ js/glossary.js    (240+ term glossary)    │
 │    ├─ js/offices.js     (68 office data)        │
 │    ├─ js/abbreviations.js (shared NWS abbrevs)  │
 │    ├─ js/diff.js        (forecast diff engine)  │
@@ -82,8 +82,8 @@ Covering all US regions: Northeast (New York, Boston, Philadelphia, Washington D
 - **NWS API** - Pulls directly from `api.weather.gov` (no API key needed)
 - **AI summaries** - Claude Haiku via Vercel AI Gateway with OIDC auth
 - **Forecast diff** - Paragraph-level comparison showing what changed between AFD versions
-- **System fonts** - Georgia serif for body, system monospace for raw AFD, system sans for UI
-- **Light mode** - Editorial design with generous whitespace
+- **Custom typography** - Fraunces display, Source Serif 4 body, DM Sans UI, JetBrains Mono for raw AFD
+- **Light/dark mode** - Editorial design with warm cream backgrounds, dark mode with warm near-blacks
 - **Mobile responsive** - Side-by-side stacks to vertical on screens under 768px
 - **Accessible** - ARIA roles on modals and tooltips, focus trapping, keyboard navigation, severity icons
 - **DST-aware** - Zulu time conversion uses IANA timezones per office
@@ -116,6 +116,14 @@ THRU TUE. TEMPS WILL REMAIN BLO NORMAL. NEXT TROF MOV THRU WED...
 Plaincast turns that into:
 
 > A deep southwest flow is channeling moisture into Southern California through **Tuesday**, bringing steady rain to the coast and heavy snow to the mountains. Temperatures will stay **5-10 degrees below average**. The next trough moves through **Wednesday** with increasing winds.
+
+---
+
+## Documentation
+
+- [DESIGN.md](DESIGN.md) — Design system (typography, color, spacing, components)
+- [SPEC.md](SPEC.md) — Original product spec
+- [TODOS.md](TODOS.md) — Planned features
 
 ---
 
