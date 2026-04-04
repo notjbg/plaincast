@@ -28,6 +28,9 @@ function getCachedTranslation(text, section, office, issuanceTime) {
         translationCache.delete(key);
         return null;
     }
+    // LRU touch: move to end of Map iteration order
+    translationCache.delete(key);
+    translationCache.set(key, entry);
     return entry.translation;
 }
 
@@ -144,7 +147,9 @@ Rules:
 - Preserve ALL specific details: dates, temperatures, amounts, locations, timing
 - Never introduce a different month, year, or season than the source supports
 - Explain WHY weather is happening, not just what (connect cause and effect)
-- Bold key info using **markdown**: days of week, temperatures, rainfall amounts, wind speeds, hazard terms
+- Bold key info using **markdown bold** only: days of week, temperatures, rainfall amounts, wind speeds, hazard terms
+- Do NOT use markdown headers (##, ###), horizontal rules (---), code blocks, or bullet lists
+- Write in flowing prose paragraphs only
 - Expand all NWS abbreviations naturally
 - Convert Zulu times to context (e.g., "early morning", "Tuesday afternoon")
 - Keep it concise but complete - no filler, no hedging
@@ -185,6 +190,9 @@ export default async function handler(req, res) {
     }
     if (office && (typeof office !== 'string' || !OFFICE_TIMEZONES[office.toUpperCase()])) {
         return res.status(400).json({ error: 'Invalid office' });
+    }
+    if (issuanceTime !== undefined && (typeof issuanceTime !== 'string' || issuanceTime.length > 50)) {
+        return res.status(400).json({ error: 'Invalid issuanceTime' });
     }
 
     // Check translation cache first

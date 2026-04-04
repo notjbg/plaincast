@@ -5,6 +5,20 @@ import { SECTION_NAMES } from '../docs/js/offices.js';
 import { GLOSSARY } from '../docs/js/glossary.js';
 import { FULL_ABBREVIATIONS } from '../docs/js/abbreviations.js';
 
+// ─── stripAIArtifacts ────────────────────────────────────────────────
+// Strips markdown headers, horizontal rules, backticks, and NWS "KEY Message" prefixes.
+export function stripAIArtifacts(text) {
+    if (!text) return '';
+    let t = text;
+    t = t.replace(/^#{1,3}\s+.*$/gm, '');
+    t = t.replace(/^---+\s*$/gm, '');
+    t = t.replace(/^`{3}[^\n]*$/gm, '');
+    t = t.replace(/`{1,3}([^`\n]*)`{1,3}/g, '$1');
+    t = t.replace(/^\s*(?:[Kk][Ee][Yy]\s+)?[Mm]essage\s+\d+[.:]\s*/gm, '');
+    t = t.replace(/\n{3,}/g, '\n\n');
+    return t.trim();
+}
+
 // ─── parseSections ──────────────────────────────────────────────────
 // Copied from docs/js/app.js — pure function, no DOM dependency.
 export function parseSections(text) {

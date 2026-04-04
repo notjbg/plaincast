@@ -7,6 +7,7 @@ import { computeDiff, renderDiffHTML } from './diff.js';
 let currentOffice = 'LOX';
 let fetchGeneration = 0; // race condition guard for rapid office switching
 let issueTimeDate = null; // for auto-updating "X ago"
+let currentTranslationObserver = null; // IntersectionObserver for lazy AI translation
 
 // Fetch live alerts and return map of event name → alert URL
 async function fetchAlerts(office) {
@@ -104,6 +105,21 @@ function parseSections(text) {
     }
 
     return { sections, forecaster };
+}
+
+// ─── AI artifact stripping ──────────────────────────────────────────
+// Strips markdown headers, horizontal rules, backticks, and NWS "KEY Message" prefixes
+// from AI translation output. Applied to ALL output paths (AI + regex + takeaway).
+function stripAIArtifacts(text) {
+    if (!text) return '';
+    let t = text;
+    t = t.replace(/^#{1,3}\s+.*$/gm, '');     // ## headers, ### sub-headers
+    t = t.replace(/^---+\s*$/gm, '');           // --- horizontal rules
+    t = t.replace(/^`{3}[^\n]*$/gm, '');                     // strip fenced code block delimiters, keep enclosed text
+    t = t.replace(/`{1,3}([^`\n]*)`{1,3}/g, '$1');         // inline backticks, keep content
+    t = t.replace(/^\s*(?:[Kk][Ee][Yy]\s+)?[Mm]essage\s+\d+[.:]\s*/gm, ''); // "KEY Message 1." / "Key message 1:"
+    t = t.replace(/\n{3,}/g, '\n\n');            // collapse excess newlines from removed lines
+    return t.trim();
 }
 
 // ─── Plain English translation ─────────────────────────────────────
@@ -288,7 +304,7 @@ function extractTakeaway(sections) {
     if (!sentences) return text.substring(0, 200);
     const takeaway = sentences.slice(0, 2).join(' ').trim();
     // Quick cleanup
-    return translateToPlainEnglish(takeaway).replace(/<\/?p>/g, '');
+    return stripAIArtifacts(translateToPlainEnglish(takeaway).replace(/<\/?p>/g, ''));
 }
 
 // ─── Confidence indicator ────────────────────────────────────────────
@@ -552,8 +568,8 @@ async function fetchAITranslation(text, section, office, issuanceTime) {
     });
     if (!res.ok) throw new Error('Translation failed');
     const data = await res.json();
-    // Sanitize: escape HTML entities first, then convert markdown bold
-    let safe = data.translation
+    // Strip AI artifacts (## headers, --- rules, KEY Message prefixes), then sanitize
+    let safe = stripAIArtifacts(data.translation)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let html = safe
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -616,14 +632,16 @@ function render(sections, productContext = {}) {
         `<a href="#section-${safeId(s.key)}" aria-label="Jump to ${s.key} section">${s.key}</a>`
     ).join('');
 
-    // Render sections with regex first (instant), then upgrade with AI
+    // Render sections with regex translation first (instant), then upgrade with AI lazily
     sectionsEl.innerHTML = sections.map(s => {
         let plainHtml;
         if (s.key === 'Active Alerts') {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
-            // Show loading spinner initially
-            plainHtml = '<div style="display:flex;align-items:center;gap:0.5rem;color:var(--text-muted);font-family:var(--font-ui);font-size:0.85rem"><span class="ai-loading"></span> Summarizing...</div>';
+            // Show regex translation immediately with AI loading indicator
+            const regexHtml = translateToPlainEnglish(s.text);
+            plainHtml = regexHtml
+                + '<div class="ai-loading-label"><span class="ai-loading"></span> AI summary loading...</div>';
         }
         return `
         <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
@@ -645,36 +663,72 @@ function render(sections, productContext = {}) {
         </div>`;
     }).join('');
 
-    // Fire off AI translations with concurrency limit (3 at a time)
-    // Capture current generation to prevent stale writes if office changes mid-translation
+    // Lazy AI translation via IntersectionObserver with lifecycle cleanup
     const renderGen = fetchGeneration;
+    const inFlight = new Set();
+
+    if (currentTranslationObserver) {
+        currentTranslationObserver.disconnect();
+        currentTranslationObserver = null;
+    }
+
     const toTranslate = sections.filter(s => s.key !== 'Active Alerts');
-    const concurrency = 3;
-    let i = 0;
-    async function translateNext() {
-        while (i < toTranslate.length) {
-            const s = toTranslate[i++];
-            if (renderGen !== fetchGeneration) return; // office changed, abort
-            const el = document.getElementById(`section-${safeId(s.key)}`);
-            if (!el) continue;
-            const plainCol = el.querySelector('.plain-col');
-            try {
-                const html = await fetchAITranslation(s.text, s.key, currentOffice, productContext.issuanceTime);
-                if (renderGen !== fetchGeneration) return; // office changed during fetch
-                plainCol.innerHTML = html;
-            } catch (err) {
+
+    async function upgradeSection(s) {
+        const sectionId = safeId(s.key);
+        if (inFlight.has(sectionId)) return;
+        inFlight.add(sectionId);
+        if (renderGen !== fetchGeneration) return;
+
+        const el = document.getElementById('section-' + sectionId);
+        if (!el) return;
+        const plainCol = el.querySelector('.plain-col');
+
+        try {
+            const html = await fetchAITranslation(s.text, s.key, currentOffice, productContext.issuanceTime);
+            if (renderGen !== fetchGeneration) return;
+
+            // Crossfade: lock height, fade out, swap content, fade in
+            const currentHeight = plainCol.offsetHeight;
+            plainCol.style.minHeight = currentHeight + 'px';
+            plainCol.style.opacity = '0';
+
+            setTimeout(() => {
                 if (renderGen !== fetchGeneration) return;
-                console.warn('AI translation failed for', s.key, err);
-                plainCol.innerHTML = `<div style="font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;font-style:italic">AI summary unavailable — showing expanded version</div>` + translateToPlainEnglish(s.text);
-            }
+                plainCol.innerHTML = html;
+                plainCol.style.opacity = '1';
+                setTimeout(() => { plainCol.style.minHeight = ''; }, 250);
+            }, 200);
+        } catch (err) {
+            if (renderGen !== fetchGeneration) return;
+            console.warn('AI translation failed for', s.key, err);
+            const loadingLabel = plainCol.querySelector('.ai-loading-label');
+            if (loadingLabel) loadingLabel.remove();
         }
     }
-    // Launch concurrent workers
-    const workers = [];
-    for (let w = 0; w < Math.min(concurrency, toTranslate.length); w++) {
-        workers.push(translateNext());
+
+    // IntersectionObserver: translate sections as they scroll into view
+    if ('IntersectionObserver' in window) {
+        currentTranslationObserver = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+                const sectionKey = entry.target.dataset.sectionKey;
+                const section = toTranslate.find(s => s.key === sectionKey);
+                if (section) {
+                    upgradeSection(section);
+                    currentTranslationObserver.unobserve(entry.target);
+                }
+            }
+        }, { rootMargin: '200px' });
+
+        for (const s of toTranslate) {
+            const el = document.getElementById('section-' + safeId(s.key));
+            if (el) currentTranslationObserver.observe(el);
+        }
+    } else {
+        // Fallback for browsers without IntersectionObserver
+        for (const s of toTranslate) upgradeSection(s);
     }
-    Promise.allSettled(workers);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────

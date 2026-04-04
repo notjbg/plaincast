@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { translateToPlainEnglish } from './helpers.js';
+import { translateToPlainEnglish, stripAIArtifacts } from './helpers.js';
 
 describe('translateToPlainEnglish', () => {
     describe('abbreviation expansion', () => {
@@ -103,5 +103,62 @@ describe('translateToPlainEnglish', () => {
             expect(result.toLowerCase()).toContain('clear');
             expect(result).toContain('warm');
         });
+    });
+});
+
+describe('stripAIArtifacts', () => {
+    it('should strip ## header lines', () => {
+        const result = stripAIArtifacts('## Synopsis\nClear skies expected.');
+        expect(result).not.toContain('##');
+        expect(result).toContain('Clear skies expected.');
+    });
+
+    it('should strip ### sub-header lines', () => {
+        const result = stripAIArtifacts('### Outlook\nWarming trend continues.');
+        expect(result).not.toContain('###');
+        expect(result).toContain('Warming trend continues.');
+    });
+
+    it('should strip --- horizontal rules', () => {
+        const result = stripAIArtifacts('First section.\n---\nSecond section.');
+        expect(result).not.toContain('---');
+        expect(result).toContain('First section.');
+        expect(result).toContain('Second section.');
+    });
+
+    it('should strip backticks but preserve content', () => {
+        const result = stripAIArtifacts('The `MVFR` conditions will persist.');
+        expect(result).not.toContain('`');
+        expect(result).toContain('MVFR');
+    });
+
+    it('should strip fenced code block delimiters but preserve enclosed text', () => {
+        const input = '```\nWarm and dry through Thursday.\nCooling trend Friday.\n```';
+        const result = stripAIArtifacts(input);
+        expect(result).not.toContain('```');
+        expect(result).toContain('Warm and dry through Thursday.');
+        expect(result).toContain('Cooling trend Friday.');
+    });
+
+    it('should strip "KEY Message 1." prefixes', () => {
+        const result = stripAIArtifacts('KEY Message 1. A warm front is advancing.');
+        expect(result).not.toContain('KEY Message');
+        expect(result).toContain('A warm front is advancing.');
+    });
+
+    it('should strip "Key message 2:" prefixes (lowercase variant)', () => {
+        const result = stripAIArtifacts('Key message 2: Cold front arrives Sunday.');
+        expect(result).not.toContain('Key message');
+        expect(result).toContain('Cold front arrives Sunday.');
+    });
+
+    it('should preserve **bold** markdown (untouched)', () => {
+        const result = stripAIArtifacts('Expect **heavy rain** on Monday.');
+        expect(result).toContain('**heavy rain**');
+    });
+
+    it('should handle null input', () => {
+        expect(stripAIArtifacts(null)).toBe('');
+        expect(stripAIArtifacts(undefined)).toBe('');
     });
 });
