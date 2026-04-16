@@ -69,6 +69,7 @@ const rateLimitCleanupTimer = setInterval(() => {
         entry.timestamps = entry.timestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
         if (entry.timestamps.length === 0) rateLimitMap.delete(ip);
     }
+    if (rateLimitMap.size > 10_000) rateLimitMap.clear();
 }, 5 * 60 * 1000);
 rateLimitCleanupTimer.unref?.();
 
@@ -214,13 +215,14 @@ export default async function handler(req, res) {
 
         const translation = result.text || '';
 
-        if (!translation) {
-            return res.status(502).json({ error: 'Empty translation' });
-        }
-
-        // Check for model refusal (safety filter triggered)
+        // Check for model refusal (safety filter triggered) before empty-text guard,
+        // since filter refusals typically come back with empty or stubbed text.
         if (result.finishReason === 'content-filter') {
             return res.status(503).json({ error: 'Translation skipped for this section', reason: 'content-filter' });
+        }
+
+        if (!translation) {
+            return res.status(502).json({ error: 'Empty translation' });
         }
 
         // Cache successful translation for future requests

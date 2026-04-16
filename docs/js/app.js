@@ -42,7 +42,7 @@ async function fetchAlerts(office) {
             }
         }
         return alertMap;
-    } catch(e) { console.warn('Alert fetch failed', e); return {}; }
+    } catch(e) { console.debug('Alert fetch failed', e); return {}; }
 }
 
 let currentAlerts = {};
@@ -191,7 +191,7 @@ function translateToPlainEnglish(text) {
             const local = utcDate.toLocaleString('en-US', { hour: 'numeric', minute: utcMin > 0 ? '2-digit' : undefined, timeZone: tz, timeZoneName: 'short' });
             return local;
         } catch(e) {
-            console.warn('Timezone conversion failed', e);
+            console.debug('Timezone conversion failed', e);
             // Fallback: use IANA zone to determine standard offset
             const stdOffsets = { 'America/New_York': -5, 'America/Detroit': -5, 'America/Indiana/Indianapolis': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8, 'America/Anchorage': -9, 'Pacific/Honolulu': -10 };
             const offset = stdOffsets[tz] || -8;
@@ -432,7 +432,7 @@ function showAlertModal(data) {
     if (data.severity) meta.push(data.severity);
     if (data.areaDesc) meta.push(data.areaDesc);
     if (data.expires) {
-        try { meta.push('Expires ' + new Date(data.expires).toLocaleString()); } catch(e) { console.warn('Date parse error', e); }
+        try { meta.push('Expires ' + new Date(data.expires).toLocaleString()); } catch(e) { console.debug('Date parse error', e); }
     }
     document.getElementById('alert-modal-meta').textContent = meta.join(' · ');
     let body = data.description || '';
@@ -569,20 +569,12 @@ function formatAlerts(text, alertMap) {
 }
 
 // ─── AI Translation ─────────────────────────────────────────────────
-const aiCache = {}; // client-side cache keyed by text hash
-
-function simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-    }
-    return hash.toString(36);
-}
+const aiCache = new Map();
+const AI_CACHE_MAX = 100;
 
 async function fetchAITranslation(text, section, office, issuanceTime) {
-    const key = simpleHash(text + '|' + section + '|' + office + '|' + (issuanceTime || ''));
-    if (aiCache[key]) return aiCache[key];
+    const key = `${office}|${section}|${issuanceTime || ''}|${text}`;
+    if (aiCache.has(key)) return aiCache.get(key);
 
     const res = await fetch('/api/translate', {
         method: 'POST',
@@ -591,7 +583,6 @@ async function fetchAITranslation(text, section, office, issuanceTime) {
     });
     if (!res.ok) throw new Error('Translation failed');
     const data = await res.json();
-    // Strip AI artifacts (## headers, --- rules, KEY Message prefixes), then sanitize
     let safe = stripAIArtifacts(data.translation)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let html = safe
@@ -600,7 +591,10 @@ async function fetchAITranslation(text, section, office, issuanceTime) {
         .filter(b => b.trim())
         .map(b => `<p>${b.trim().replace(/\n/g, ' ')}</p>`)
         .join('');
-    aiCache[key] = html;
+    if (aiCache.size >= AI_CACHE_MAX) {
+        aiCache.delete(aiCache.keys().next().value);
+    }
+    aiCache.set(key, html);
     return html;
 }
 
@@ -728,7 +722,7 @@ function render(sections, productContext = {}) {
             }, 200);
         } catch (err) {
             if (renderGen !== fetchGeneration) return;
-            console.warn('AI translation failed for', s.key, err);
+            console.debug('AI translation failed for', s.key, err);
             const loadingLabel = plainCol.querySelector('.ai-loading-label');
             if (loadingLabel) loadingLabel.remove();
         }
@@ -799,7 +793,7 @@ async function fetchAFD(office) {
                 if (thisGen === fetchGeneration) renderAFD(prodData, office);
                 return;
             }
-        } catch(e) { console.warn('Cache parse error, refetching', e); }
+        } catch(e) { console.debug('Cache parse error, refetching', e); }
     }
 
     try {
@@ -836,7 +830,7 @@ async function fetchAFD(office) {
                 const { prodData } = JSON.parse(cached);
                 renderAFD(prodData, office);
                 return;
-            } catch(e) { console.warn('Stale cache fallback failed', e); }
+            } catch(e) { console.debug('Stale cache fallback failed', e); }
         }
         sectionsEl.textContent = '';
         const errDiv = document.createElement('div');
@@ -1191,7 +1185,7 @@ afterRender.push((prodData, office, sections) => {
         const toStore = sections.map(s => ({ key: s.key, text: s.text }));
         sessionStorage.setItem(storageKey, JSON.stringify(toStore));
     } catch (e) {
-        console.warn('Diff engine error:', e);
+        console.debug('Diff engine error:', e);
     }
 });
 
@@ -1315,7 +1309,7 @@ function renderHistorySelector(items, currentId) {
             if (!res.ok) throw new Error('Fetch failed');
             const prodData = await res.json();
             renderAFD(prodData, currentOffice);
-        } catch(e) { console.warn('History fetch failed', e); }
+        } catch(e) { console.debug('History fetch failed', e); }
     });
     container.appendChild(sel);
 }
