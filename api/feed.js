@@ -3,6 +3,7 @@
 
 import { OFFICE_NAMES } from '../docs/js/offices.js';
 import { BASIC_ABBREVIATIONS } from '../docs/js/abbreviations.js';
+import { fetchAFDList, fetchAFDProduct, productUrlFromItem } from './_utils.js';
 
 const VALID_OFFICES = new Set(Object.keys(OFFICE_NAMES));
 
@@ -28,12 +29,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const listRes = await fetch(`https://api.weather.gov/products/types/AFD/locations/${office}`, {
-            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
-        });
-        if (!listRes.ok) throw new Error(`NWS API error: ${listRes.status}`);
-        const listData = await listRes.json();
-        const items = (listData['@graph'] || []).slice(0, 10);
+        const items = (await fetchAFDList(office, { signal: AbortSignal.timeout(10000) })).slice(0, 10);
 
         const cityName = OFFICE_NAMES[office] || office;
         const feedTitle = `Plaincast — ${cityName} (${office}) Forecast`;
@@ -42,23 +38,21 @@ export default async function handler(req, res) {
         let rssItems = '';
         for (const item of items) {
             try {
-                const prodUrl = item['@id'] || `https://api.weather.gov/products/${item.id}`;
-                if (!prodUrl.startsWith('https://api.weather.gov/')) continue;
-                const prodRes = await fetch(prodUrl, {
-                    headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
-                });
-                if (!prodRes.ok) continue;
-                const prodData = await prodRes.json();
-                const text = prodData.productText || '';
+                const prodUrl = productUrlFromItem(item);
+                if (!prodUrl) continue;
+                const prodData = await fetchAFDProduct(prodUrl, { signal: AbortSignal.timeout(10000) });
+                const text = typeof prodData?.productText === 'string' ? prodData.productText : '';
+                const issued = new Date(prodData?.issuanceTime);
+                if (!text || Number.isNaN(issued.getTime()) || !item?.id) continue;
                 // Extract synopsis for description
                 const synMatch = text.match(/\.SYNOPSIS[^.]*\.{2,3}\s*([\s\S]*?)(?=\n\.[A-Z]|\n\$\$)/);
                 const synopsis = synMatch ? regexTranslate(synMatch[1]) : regexTranslate(text.substring(0, 500));
-                const pubDate = new Date(prodData.issuanceTime).toUTCString();
+                const pubDate = issued.toUTCString();
 
                 rssItems += `    <item>
-      <title>${escapeXml(cityName)} Forecast - ${escapeXml(new Date(prodData.issuanceTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</title>
+      <title>${escapeXml(cityName)} Forecast - ${escapeXml(issued.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }))}</title>
       <link>${escapeXml(feedLink)}</link>
-      <guid isPermaLink="false">${escapeXml(item.id)}</guid>
+      <guid isPermaLink="false">${escapeXml(String(item.id))}</guid>
       <pubDate>${escapeXml(pubDate)}</pubDate>
       <description>${escapeXml(synopsis.substring(0, 1000))}</description>
     </item>\n`;

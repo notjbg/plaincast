@@ -1,5 +1,6 @@
 // Vercel serverless function: dynamic OG image per office
 import { OFFICE_NAMES } from '../docs/js/offices.js';
+import { fetchAFDList, fetchAFDProduct, productUrlFromItem } from './_utils.js';
 
 export default async function handler(req, res) {
     const office = (req.query.office || '').toUpperCase();
@@ -14,37 +15,25 @@ export default async function handler(req, res) {
     // Fetch latest AFD for key takeaway
     let takeaway = 'What the forecast actually says.';
     try {
-        const listRes = await fetch(`https://api.weather.gov/products/types/AFD/locations/${office}`, {
-            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
-        });
-        if (listRes.ok) {
-            const listData = await listRes.json();
-            const latest = listData['@graph']?.[0];
-            if (latest) {
-                const prodUrl = latest['@id'] || `https://api.weather.gov/products/${latest.id}`;
-                if (!prodUrl.startsWith('https://api.weather.gov/')) throw new Error('Unexpected URL');
-                const prodRes = await fetch(prodUrl, {
-                    headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
+        const items = await fetchAFDList(office, { signal: AbortSignal.timeout(5000) });
+        const prodUrl = productUrlFromItem(items[0]);
+        if (prodUrl) {
+            const prodData = await fetchAFDProduct(prodUrl, { signal: AbortSignal.timeout(5000) });
+            const text = typeof prodData?.productText === 'string' ? prodData.productText : '';
+            // Extract synopsis first sentences
+            const synMatch = text.match(/\.SYNOPSIS[^.]*\.{2,3}\s*([\s\S]*?)(?=\n\.[A-Z]|\n\$\$)/);
+            if (synMatch) {
+                let syn = synMatch[1].replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
+                // Take first 2 sentences
+                const sentences = syn.match(/[^.!?]+[.!?]+/g);
+                if (sentences) syn = sentences.slice(0, 2).join(' ').trim();
+                if (syn.length > 200) syn = syn.substring(0, 197) + '...';
+                // Basic cleanup
+                syn = syn.replace(/\b(chc|pcpn|tstms?|sfc|trof|mtns|vlys|csts|wnds|temps|thru|btwn|fcst)\b/gi, m => {
+                    const map = {chc:'chance',pcpn:'precipitation',tstm:'thunderstorm',tstms:'thunderstorms',sfc:'surface',trof:'trough',mtns:'mountains',vlys:'valleys',csts:'coasts',wnds:'winds',temps:'temperatures',thru:'through',btwn:'between',fcst:'forecast'};
+                    return map[m.toLowerCase()] || m;
                 });
-                if (prodRes.ok) {
-                    const prodData = await prodRes.json();
-                    const text = prodData.productText || '';
-                    // Extract synopsis first sentences
-                    const synMatch = text.match(/\.SYNOPSIS[^.]*\.{2,3}\s*([\s\S]*?)(?=\n\.[A-Z]|\n\$\$)/);
-                    if (synMatch) {
-                        let syn = synMatch[1].replace(/\.{2,}/g, '. ').replace(/\s+/g, ' ').trim();
-                        // Take first 2 sentences
-                        const sentences = syn.match(/[^.!?]+[.!?]+/g);
-                        if (sentences) syn = sentences.slice(0, 2).join(' ').trim();
-                        if (syn.length > 200) syn = syn.substring(0, 197) + '...';
-                        // Basic cleanup
-                        syn = syn.replace(/\b(chc|pcpn|tstms?|sfc|trof|mtns|vlys|csts|wnds|temps|thru|btwn|fcst)\b/gi, m => {
-                            const map = {chc:'chance',pcpn:'precipitation',tstm:'thunderstorm',tstms:'thunderstorms',sfc:'surface',trof:'trough',mtns:'mountains',vlys:'valleys',csts:'coasts',wnds:'winds',temps:'temperatures',thru:'through',btwn:'between',fcst:'forecast'};
-                            return map[m.toLowerCase()] || m;
-                        });
-                        takeaway = syn;
-                    }
-                }
+                takeaway = syn;
             }
         }
     } catch (e) {

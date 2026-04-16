@@ -55,7 +55,8 @@ export default async function handler(req, res) {
 
     try {
         const obsRes = await fetch(`https://api.weather.gov/stations/${station}/observations/latest`, {
-            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' }
+            headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' },
+            signal: AbortSignal.timeout(10000)
         });
         if (!obsRes.ok) {
             return res.status(200).json({ temp: null, normal: null, delta: null });
