@@ -103,6 +103,12 @@ describe('translateToPlainEnglish', () => {
             expect(result.toLowerCase()).toContain('clear');
             expect(result).toContain('warm');
         });
+
+        it('escapes raw HTML before rendering translated forecast text', () => {
+            const result = translateToPlainEnglish('Rain likely <script>alert("x")</script> on Tuesday.');
+            expect(result).toContain('&lt;script&gt;');
+            expect(result).not.toContain('<script>');
+        });
     });
 });
 

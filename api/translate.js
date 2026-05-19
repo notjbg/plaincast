@@ -181,15 +181,23 @@ export default async function handler(req, res) {
         return res.status(429).json({ error: 'Too many requests. Please try again later.' });
     }
 
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+        return res.status(400).json({ error: 'Invalid request body' });
+    }
+
     const { text, section, office, issuanceTime } = req.body;
-    if (!text || text.length < 20) return res.status(400).json({ error: 'Text too short' });
+    const officeCode = typeof office === 'string' ? office.toUpperCase() : office;
+    const hasSection = section !== undefined && section !== null && section !== '';
+    const hasOffice = office !== undefined && office !== null && office !== '';
+    const sectionLabel = typeof section === 'string' ? section.trim().replace(/[ \t]+/g, ' ') : section;
+    if (typeof text !== 'string' || text.length < 20) return res.status(400).json({ error: 'Text too short' });
     if (text.length > 10000) return res.status(400).json({ error: 'Text too long' });
 
     // Validate section and office to prevent prompt injection via system prompt
-    if (section && (typeof section !== 'string' || section.length > 100)) {
+    if (hasSection && (typeof section !== 'string' || !sectionLabel || sectionLabel.length > 100 || /[\r\n\u0000-\u001F\u007F]/.test(section))) {
         return res.status(400).json({ error: 'Invalid section' });
     }
-    if (office && (typeof office !== 'string' || !OFFICE_TIMEZONES[office.toUpperCase()])) {
+    if (hasOffice && (typeof office !== 'string' || !OFFICE_TIMEZONES[officeCode])) {
         return res.status(400).json({ error: 'Invalid office' });
     }
     if (issuanceTime !== undefined && (typeof issuanceTime !== 'string' || issuanceTime.length > 50)) {
@@ -197,12 +205,12 @@ export default async function handler(req, res) {
     }
 
     // Check translation cache first
-    const cached = getCachedTranslation(text, section, office, issuanceTime);
+    const cached = getCachedTranslation(text, sectionLabel, officeCode, issuanceTime);
     if (cached) {
         return res.status(200).json({ translation: cached, cached: true });
     }
 
-    const systemPrompt = buildSystemPrompt({ section, office, issuanceTime });
+    const systemPrompt = buildSystemPrompt({ section: sectionLabel, office: officeCode, issuanceTime });
 
     try {
         const result = await generateText({
@@ -226,7 +234,7 @@ export default async function handler(req, res) {
         }
 
         // Cache successful translation for future requests
-        setCachedTranslation(text, section, office, issuanceTime, translation);
+        setCachedTranslation(text, sectionLabel, officeCode, issuanceTime, translation);
 
         return res.status(200).json({ translation, cached: false });
     } catch (err) {

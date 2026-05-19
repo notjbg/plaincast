@@ -135,6 +135,14 @@ function stripAIArtifacts(text) {
     return t.trim();
 }
 
+function escapeHTML(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeAttr(text) {
+    return escapeHTML(text).replace(/"/g, '&quot;');
+}
+
 // ─── Plain English translation ─────────────────────────────────────
 // Shared NWS artifact cleanup used by both translation and alert formatting
 function stripNWSArtifacts(text) {
@@ -219,6 +227,7 @@ function translateToPlainEnglish(text) {
     // Clean up artifacts from stripped content
     t = t.replace(/^\.\s*/gm, '');
     t = t.trim();
+    t = escapeHTML(t);
 
     // ─── Bold pass: make key info skimmable ─────────────────────────
     // Helper: bold only first occurrence of each match
@@ -526,12 +535,13 @@ function formatAlerts(text, alertMap) {
 
     const matches = t.match(alertPattern);
     if (!matches || matches.length === 0) {
-        return `<p>${t}</p>`;
+        return `<p>${escapeHTML(t)}</p>`;
     }
 
     const items = matches.map(m => {
         let item = m.trim().replace(/\.\s*$/, '').replace(/^\.\s*/, '').trim();
         item = item.charAt(0).toUpperCase() + item.slice(1);
+        const safeItem = escapeHTML(item);
         // Classify by severity
         let cls = 'alert-advisory';
         if (/warning/i.test(item)) cls = 'alert-warning';
@@ -550,17 +560,17 @@ function formatAlerts(text, alertMap) {
         if (alertEntries && alertEntries.length === 1) {
             const idx = alertIdx++;
             ALERT_DATA[idx] = alertEntries[0];
-            content = `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${item.replace(/"/g, '&quot;')}">${icon}${item}</button>`;
+            content = `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${escapeAttr(item)}">${icon}${safeItem}</button>`;
         } else if (alertEntries && alertEntries.length > 1) {
             // Multiple alerts of same type — show each with area info
             content = alertEntries.map(ad => {
                 const idx = alertIdx++;
                 ALERT_DATA[idx] = ad;
                 const area = ad.areaDesc ? ` (${ad.areaDesc.split(';')[0].trim()})` : '';
-                return `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${item.replace(/"/g, '&quot;')}${area}">${icon}${item}${area}</button>`;
+                return `<button class="alert-link" data-alert-idx="${idx}" aria-label="View details: ${escapeAttr(item + area)}">${icon}${safeItem}${escapeHTML(area)}</button>`;
             }).join('');
         } else {
-            content = `${icon}${item}`;
+            content = `${icon}${safeItem}`;
         }
         return `<li class="${cls}">${content}</li>`;
     });
@@ -785,7 +795,12 @@ async function fetchAFD(office) {
     if (footerOffice) footerOffice.textContent = office;
 
     // Check cache first (15 min TTL)
-    const cached = sessionStorage.getItem(`afd-${office}`);
+    let cached = null;
+    try {
+        cached = sessionStorage.getItem(`afd-${office}`);
+    } catch(e) {
+        console.debug('AFD cache read failed', e);
+    }
     if (cached) {
         try {
             const { time, prodData } = JSON.parse(cached);
@@ -814,11 +829,14 @@ async function fetchAFD(office) {
         if (thisGen !== fetchGeneration) return; // stale request
         const prodData = await prodRes.json();
 
-        // Cache the result
-        sessionStorage.setItem(`afd-${office}`, JSON.stringify({
-            time: Date.now(),
-            prodData
-        }));
+        try {
+            sessionStorage.setItem(`afd-${office}`, JSON.stringify({
+                time: Date.now(),
+                prodData
+            }));
+        } catch(e) {
+            console.debug('AFD cache write failed', e);
+        }
 
         if (thisGen === fetchGeneration) renderAFD(prodData, office);
 
