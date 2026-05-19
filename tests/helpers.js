@@ -19,6 +19,10 @@ export function stripAIArtifacts(text) {
     return t.trim();
 }
 
+function escapeHTML(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ─── parseSections ──────────────────────────────────────────────────
 // Copied from docs/js/app.js — pure function, no DOM dependency.
 export function parseSections(text) {
@@ -168,7 +172,7 @@ export function translateToPlainEnglish(text) {
     t = t.replace(/^\.\s*/gm, '');
     t = t.trim();
 
-    return t;
+    return escapeHTML(t);
 }
 
 // ─── computeConfidence ──────────────────────────────────────────────

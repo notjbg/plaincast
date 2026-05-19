@@ -1,5 +1,5 @@
 // Plaincast Service Worker — offline-capable weather forecasts
-const CACHE_NAME = 'plaincast-v3';
+const CACHE_NAME = 'plaincast-v4';
 const APP_SHELL = [
     '/',
     '/og-image.png',
@@ -30,6 +30,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    if (event.request.method !== 'GET') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
 
     // Cache-first for app shell (HTML, CSS, JS, images)
     if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/og-image.png'
