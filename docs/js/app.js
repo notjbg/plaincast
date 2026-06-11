@@ -346,6 +346,12 @@ function announce(msg) {
     if (el) el.textContent = msg;
 }
 
+// Lightweight failure telemetry via Vercel Web Analytics (no-op if not loaded),
+// so the owner can see which offices/sections actually fail in the dashboard.
+function track(name, data) {
+    try { if (window.va) window.va('event', { name, data: data || {} }); } catch (e) { /* never break the page */ }
+}
+
 function displayConfidence(fullText) {
     const container = document.getElementById('confidence-container');
     const bar = document.getElementById('confidence-bar');
@@ -759,6 +765,7 @@ function render(sections, productContext = {}) {
         } catch (err) {
             if (renderGen !== fetchGeneration) return;
             console.debug('AI translation failed for', s.key, err);
+            track('ai-translate-fail', { office: currentOffice, section: s.key });
             const loadingLabel = plainCol.querySelector('.ai-loading-label');
             if (loadingLabel) loadingLabel.remove();
         }
@@ -896,6 +903,7 @@ async function fetchAFD(office) {
         errDiv.appendChild(detail);
         sectionsEl.appendChild(errDiv);
         console.error(err);
+        track('afd-fetch-fail', { office });
     }
 }
 
@@ -927,6 +935,7 @@ async function renderAFD(prodData, office) {
 
     if (sections.length === 0) {
         sectionsEl.innerHTML = '<div class="loading">Could not parse forecast sections.</div>';
+        track('afd-parse-empty', { office });
         return;
     }
 
@@ -987,15 +996,20 @@ function findNearestOffice(lat, lon) {
 // ─── Init ───────────────────────────────────────────────────────────
 const officeSelect = document.getElementById('office-select');
 
-// Office priority: URL param > localStorage > geolocation > LOX
+// Office priority: ?office= > /o/<CODE>/ path > localStorage > geolocation > LOX
 const urlParams = new URLSearchParams(window.location.search);
 const urlOffice = urlParams.get('office')?.toUpperCase();
+const pathMatch = window.location.pathname.match(/\/o\/([A-Za-z]{3})\/?$/);
+const pathOffice = pathMatch ? pathMatch[1].toUpperCase() : null;
 const savedOffice = (() => { try { return localStorage.getItem('plaincast-office'); } catch(e) { return null; } })();
+const hasOption = (o) => o && officeSelect.querySelector(`option[value="${o}"]`);
 let initialOffice = 'LOX';
 
-if (urlOffice && officeSelect.querySelector(`option[value="${urlOffice}"]`)) {
+if (hasOption(urlOffice)) {
     initialOffice = urlOffice;
-} else if (savedOffice && officeSelect.querySelector(`option[value="${savedOffice}"]`)) {
+} else if (hasOption(pathOffice)) {
+    initialOffice = pathOffice; // per-office SEO landing page (/o/OKX/)
+} else if (hasOption(savedOffice)) {
     initialOffice = savedOffice;
 }
 officeSelect.value = initialOffice;
@@ -1003,7 +1017,9 @@ officeSelect.value = initialOffice;
 function updateTitle(office) {
     const opt = officeSelect.querySelector(`option[value="${office}"]`);
     const name = opt ? opt.textContent.replace(/\s*\([^)]+\)/, '') : office;
-    document.title = `${name} Forecast - Plaincast`;
+    // Match the baked per-office SEO <title> (scripts/build-offices.mjs) so the
+    // JS-rendered title agrees with what static crawlers see.
+    document.title = `${name} NWS Forecast in Plain English · Plaincast`;
 }
 
 function selectOffice(office, updateUrl) {
@@ -1037,7 +1053,7 @@ updateTitle(initialOffice);
 fetchAFD(initialOffice);
 
 // Geolocation: auto-detect after initial load (non-blocking)
-if (!urlOffice && !savedOffice && navigator.geolocation) {
+if (!urlOffice && !pathOffice && !savedOffice && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             const detected = findNearestOffice(pos.coords.latitude, pos.coords.longitude);
