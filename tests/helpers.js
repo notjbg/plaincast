@@ -35,8 +35,8 @@ export function parseSections(text) {
     for (const line of lines) {
         // Check for section headers: .SYNOPSIS..., .SHORT TERM (TDY-TUE)..., .LOX WATCHES/WARNINGS/ADVISORIES...
         // Try with office prefix first (3-letter like LOX, SGX)
-        const headerMatch = line.match(/^\.[A-Z]{3}\s+([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/)
-            || line.match(/^\.([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/);
+        const headerMatch = line.match(/^\.[A-Z]{3}\s+([A-Z\s\/]+?)(?:\s*(?:\([^)]*\)|\/[^/]*\/))?\s*\.{2,3}/)
+            || line.match(/^\.([A-Z\s\/]+?)(?:\s*(?:\([^)]*\)|\/[^/]*\/))?\s*\.{2,3}/);
         if (headerMatch) {
             if (currentKey) {
                 sections.push({ key: currentKey, text: currentLines.join('\n').trim() });
@@ -127,6 +127,15 @@ function stripNWSArtifacts(text) {
     t = t.replace(/\.\s*\.\s*/g, '. ');
     t = t.replace(/\s{2,}/g, ' ');
     return t.trim();
+}
+
+// ─── hasRealAlerts ──────────────────────────────────────────────────
+// Copied from docs/js/app.js — true only when a watches/warnings body
+// names a real advisory (not an empty "None." / "AZ...None." body).
+const ALERT_PATTERN = /((?:High Wind (?:Watch|Warning)|Wind Advisory|Flood (?:Watch|Warning)|High Surf (?:Advisory|Warning)|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Winter Weather Advisory|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado (?:Watch|Warning)|Severe Thunderstorm (?:Watch|Warning)|Flash Flood (?:Watch|Warning)|Blizzard Warning|Ice Storm Warning|Freeze (?:Watch|Warning)|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning|Extreme (?:Heat|Cold) Warning|Wind Chill (?:Watch|Warning|Advisory)|Tropical Storm (?:Watch|Warning)|Hurricane (?:Watch|Warning)|Rip Current Statement|Coastal Flood (?:Watch|Warning|Advisory|Statement))[^.]*\.?)/gi;
+export function hasRealAlerts(text) {
+    if (!text) return false;
+    return !!stripNWSArtifacts(text).match(ALERT_PATTERN);
 }
 
 // ─── translateToPlainEnglish (pure subset) ──────────────────────────

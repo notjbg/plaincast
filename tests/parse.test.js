@@ -206,6 +206,21 @@ describe('parseSections — Jan 2026 Key Messages format', () => {
         expect(disc.text).toContain('Bermuda high');
     });
 
+    // Regression: slash-delimited TAF period in the aviation header
+    // (.AVIATION /00Z .../) must still parse as its own Aviation section.
+    // Roughly half of NWS offices (OKX/LOT/BOX/PHI) use this format; the old
+    // header regex only handled (paren) periods, silently merging Aviation
+    // into Discussion.
+    it('should parse slash-delimited .AVIATION /…/ headers as Aviation', () => {
+        const { sections } = parseSections(KEY_MESSAGES_AFD);
+        expect(sections.some(s => s.key === 'Aviation')).toBe(true);
+        const aviation = sections.find(s => s.key === 'Aviation');
+        expect(aviation.text).toContain('VFR conditions');
+        // and the Discussion must NOT have swallowed the aviation header/body
+        const disc = sections.find(s => s.key === 'Discussion');
+        expect(disc.text).not.toContain('AVIATION');
+    });
+
     it('should parse .MESSAGES... as Messages section', () => {
         const afd = `.MESSAGES...
 Heavy snow expected above 5000 ft.

@@ -513,7 +513,7 @@ body {
     white-space: normal;
     font-weight: 400;
 }
-.jargon:hover .tip, .jargon.tip-open .tip { display: block; }
+.jargon:hover .tip, .jargon:focus .tip, .jargon:focus-within .tip, .jargon.tip-open .tip { display: block; }
 .jargon .tip.tip-below { bottom: auto; top: calc(100% + 6px); }
 
 /* Loading / error */

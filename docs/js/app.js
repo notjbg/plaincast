@@ -59,8 +59,8 @@ function parseSections(text) {
     for (const line of lines) {
         // Check for section headers: .SYNOPSIS..., .SHORT TERM (TDY-TUE)..., .LOX WATCHES/WARNINGS/ADVISORIES...
         // Try with office prefix first (3-letter like LOX, SGX)
-        const headerMatch = line.match(/^\.[A-Z]{3}\s+([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/)
-            || line.match(/^\.([A-Z\s\/]+?)(?:\s*\([^)]*\))?\s*\.{2,3}/);
+        const headerMatch = line.match(/^\.[A-Z]{3}\s+([A-Z\s\/]+?)(?:\s*(?:\([^)]*\)|\/[^/]*\/))?\s*\.{2,3}/)
+            || line.match(/^\.([A-Z\s\/]+?)(?:\s*(?:\([^)]*\)|\/[^/]*\/))?\s*\.{2,3}/);
         if (headerMatch) {
             if (currentKey) {
                 sections.push({ key: currentKey, text: currentLines.join('\n').trim() });
@@ -526,14 +526,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Known NWS alert types — used both to format advisories and to tell a real
+// watches/warnings body from an empty "None." (or "AZ...None. CA...None.") one.
+const ALERT_PATTERN = /((?:High Wind (?:Watch|Warning)|Wind Advisory|Flood (?:Watch|Warning)|High Surf (?:Advisory|Warning)|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Winter Weather Advisory|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado (?:Watch|Warning)|Severe Thunderstorm (?:Watch|Warning)|Flash Flood (?:Watch|Warning)|Blizzard Warning|Ice Storm Warning|Freeze (?:Watch|Warning)|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning|Extreme (?:Heat|Cold) Warning|Wind Chill (?:Watch|Warning|Advisory)|Tropical Storm (?:Watch|Warning)|Hurricane (?:Watch|Warning)|Rip Current Statement|Coastal Flood (?:Watch|Warning|Advisory|Statement))[^.]*\.?)/gi;
+
+// True only when a watches/warnings section actually names an advisory.
+function hasRealAlerts(text) {
+    if (!text) return false;
+    return !!stripNWSArtifacts(text).match(ALERT_PATTERN);
+}
+
 function formatAlerts(text, alertMap) {
     // Strip NWS artifacts and format as list items
     let t = stripNWSArtifacts(text);
 
-    // Split on known alert types to create individual items
-    const alertPattern = /((?:High Wind (?:Watch|Warning)|Wind Advisory|Flood (?:Watch|Warning)|High Surf (?:Advisory|Warning)|Beach Hazards? Statement|Winter Storm (?:Watch|Warning)|Winter Weather Advisory|Small Craft Advisory|Gale Warning|Storm Warning|Red Flag Warning|Fire Weather Watch|Tornado (?:Watch|Warning)|Severe Thunderstorm (?:Watch|Warning)|Flash Flood (?:Watch|Warning)|Blizzard Warning|Ice Storm Warning|Freeze (?:Watch|Warning)|Frost Advisory|Dense Fog Advisory|Heat Advisory|Excessive Heat Warning|Extreme (?:Heat|Cold) Warning|Wind Chill (?:Watch|Warning|Advisory)|Tropical Storm (?:Watch|Warning)|Hurricane (?:Watch|Warning)|Rip Current Statement|Coastal Flood (?:Watch|Warning|Advisory|Statement))[^.]*\.?)/gi;
-
-    const matches = t.match(alertPattern);
+    const matches = t.match(ALERT_PATTERN);
     if (!matches || matches.length === 0) {
         return `<p>${escapeHTML(t)}</p>`;
     }
@@ -659,13 +666,19 @@ function render(sections, productContext = {}) {
 
     // Section nav — sanitize IDs for URL safety
     const safeId = (key) => key.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-    navEl.innerHTML = sections.map(s =>
+    // An "Active Alerts" section whose body is just "None." is hidden (and dropped
+    // from the nav) until live alerts arrive — otherwise quiet offices get a
+    // meaningless "Active Alerts — None." card pinned to the top.
+    const isEmptyAlerts = (s) => s.key === 'Active Alerts'
+        && !hasRealAlerts(s.text) && Object.keys(currentAlerts).length === 0;
+    navEl.innerHTML = sections.filter(s => !isEmptyAlerts(s)).map(s =>
         `<a href="#section-${safeId(s.key)}" aria-label="Jump to ${s.key} section">${s.key}</a>`
     ).join('');
 
     // Render sections with regex translation first (instant), then upgrade with AI lazily
     sectionsEl.innerHTML = sections.map(s => {
         let plainHtml;
+        const hiddenAttr = isEmptyAlerts(s) ? ' style="display:none"' : '';
         if (s.key === 'Active Alerts') {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
@@ -675,7 +688,7 @@ function render(sections, productContext = {}) {
                 + '<div class="ai-loading-label"><span class="ai-loading"></span> AI summary loading...</div>';
         }
         return `
-        <div class="forecast-section" id="section-${safeId(s.key)}" data-section-key="${s.key}">
+        <div class="forecast-section"${hiddenAttr} id="section-${safeId(s.key)}" data-section-key="${s.key}">
             <h2 class="section-title">${s.key}</h2>
             <div class="ai-toggle">
                 <button class="ai-toggle-btn active" data-view="plain">Summary</button>
@@ -903,7 +916,7 @@ async function renderAFD(prodData, office) {
     }
 
     // Smart section ordering: alerts first when active, coastal/fire context
-    const hasAlerts = sections.some(s => s.key === 'Active Alerts');
+    const hasAlerts = sections.some(s => s.key === 'Active Alerts' && hasRealAlerts(s.text));
     const orderedSections = reorderSections(sections, office, hasAlerts);
 
     // Extract and display confidence
@@ -922,6 +935,7 @@ async function renderAFD(prodData, office) {
             if (alertSection) {
                 const el = document.getElementById('section-active-alerts');
                 if (el) {
+                    el.style.display = ''; // un-hide if it was a "None." body now superseded by live alerts
                     const plainCol = el.querySelector('.plain-col');
                     if (plainCol) plainCol.innerHTML = formatAlerts(alertSection.text, alertMap);
                 }
@@ -1302,6 +1316,7 @@ function renderHistorySelector(items, currentId) {
     container.textContent = '';
     const sel = document.createElement('select');
     sel.id = 'history-select';
+    sel.setAttribute('aria-label', 'Forecast issuance time');
     sel.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.4rem;background:var(--bg-surface);color:var(--text)';
     const tz = OFFICE_TIMEZONES[currentOffice] || 'America/Los_Angeles';
     if (items.length === 0) {
