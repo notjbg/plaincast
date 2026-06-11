@@ -107,7 +107,6 @@ export const GLOSSARY = {
     // Heights
     'AGL': 'Above Ground Level',
     'MSL': 'Mean Sea Level',
-    'FL': 'Flight Level — altitude in hundreds of feet based on standard pressure',
 
     // Airport codes
     'KLAX': 'Los Angeles International Airport',
@@ -138,7 +137,6 @@ export const GLOSSARY = {
     'KTS': 'Knots — nautical miles per hour',
     'kts': 'Knots — nautical miles per hour',
     'kt': 'Knot — one nautical mile per hour',
-    'NM': 'Nautical Miles',
 
     // Abbreviations (general)
     'chc': 'Chance',
@@ -207,7 +205,6 @@ export const GLOSSARY = {
     'gusts': 'Brief, sudden increases in wind speed',
 
     // Phenomena
-    'AR': 'Atmospheric River — a plume of tropical moisture',
     'atmospheric river': 'A plume of tropical moisture bringing heavy rain',
     'Pineapple Express': 'Atmospheric river originating near Hawaii',
     'Santa Ana': 'Hot, dry offshore winds in Southern California',

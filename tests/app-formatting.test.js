@@ -52,3 +52,29 @@ describe('production forecast formatters', () => {
         expect(html).toContain('Small Craft Advisory');
     });
 });
+
+describe('production translator — state-code collisions', () => {
+    it('does not expand bare NM (New Mexico) to "nautical miles"', () => {
+        const { translateToPlainEnglish } = loadProductionFormatters();
+        const html = translateToPlainEnglish('Showers develop across western NM and eastern NM through the afternoon and evening hours.');
+        expect(html).not.toMatch(/nautical miles/i);
+    });
+
+    it('still expands numeric "20 NM" to nautical miles (marine context)', () => {
+        const { translateToPlainEnglish } = loadProductionFormatters();
+        const html = translateToPlainEnglish('Seas building to 8 feet within 20 NM of the coastline through the overnight period.');
+        expect(html).toMatch(/20 nautical miles/i);
+    });
+
+    it('does not turn "LA coast" (Louisiana) into "Los Angeles coast"', () => {
+        const { translateToPlainEnglish } = loadProductionFormatters();
+        const html = translateToPlainEnglish('Rain spreads along the LA coast and adjacent waters through Wednesday morning hours.');
+        expect(html).not.toMatch(/Los Angeles/i);
+    });
+
+    it('still expands SoCal "LA County" to "Los Angeles County"', () => {
+        const { translateToPlainEnglish } = loadProductionFormatters();
+        const html = translateToPlainEnglish('Warming trend across LA County and the adjacent valleys through the midweek period.');
+        expect(html).toMatch(/Los Angeles County/i);
+    });
+});
