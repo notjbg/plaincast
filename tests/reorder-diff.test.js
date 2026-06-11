@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { reorderSections } from './helpers.js';
+import { reorderSections, hasRealAlerts } from './helpers.js';
 import { computeDiff } from '../docs/js/diff.js';
 
 // ─── Section reordering ──────────────────────────────────────────
@@ -66,6 +66,33 @@ describe('reorderSections', () => {
         const marineIdx = result.findIndex(s => s.key === 'Marine');
         // Marine should stay at end for inland office
         expect(marineIdx).toBe(2);
+    });
+});
+
+// ─── Real-alert detection ────────────────────────────────────────
+// Guards the fix for the "Active Alerts — None." card being pinned to the
+// top of quiet offices. hasRealAlerts drives whether the section is elevated
+// and rendered at all.
+
+describe('hasRealAlerts', () => {
+    it('is false for an empty "None." watches/warnings body', () => {
+        expect(hasRealAlerts('None.')).toBe(false);
+    });
+
+    it('is false for per-state "None." bodies (e.g. AZ...None. CA...None.)', () => {
+        expect(hasRealAlerts('AZ...None. CA...None.')).toBe(false);
+        expect(hasRealAlerts('MN...None. WI...None. MARINE...None.')).toBe(false);
+    });
+
+    it('is false for empty/whitespace input', () => {
+        expect(hasRealAlerts('')).toBe(false);
+        expect(hasRealAlerts(undefined)).toBe(false);
+    });
+
+    it('is true when a real advisory is named', () => {
+        expect(hasRealAlerts('High Surf Advisory in effect until 8 PM PDT this evening.')).toBe(true);
+        expect(hasRealAlerts('Small Craft Advisory until 3 AM. Gale Warning tonight.')).toBe(true);
+        expect(hasRealAlerts('Red Flag Warning in effect Monday through Tuesday.')).toBe(true);
     });
 });
 

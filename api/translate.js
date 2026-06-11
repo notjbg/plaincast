@@ -217,7 +217,7 @@ export default async function handler(req, res) {
             model: 'anthropic/claude-haiku-4.5',
             system: systemPrompt,
             prompt: text,
-            maxTokens: 1024,
+            maxOutputTokens: 1024,
             abortSignal: AbortSignal.timeout(15000),
         });
 

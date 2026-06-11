@@ -51,7 +51,7 @@
         "@type": "WebApplication",
         "name": "Plaincast",
         "url": "https://plaincast.live",
-        "description": "NWS Area Forecast Discussions decoded into plain English with side-by-side translation, 150+ term jargon glossary, forecaster confidence indicators, and smart abbreviation expansion.",
+        "description": "NWS Area Forecast Discussions decoded into plain English with side-by-side translation, 110+ term jargon glossary, forecaster confidence indicators, and smart abbreviation expansion.",
         "applicationCategory": "WeatherApplication",
         "operatingSystem": "Any",
         "browserRequirements": "Requires JavaScript",
@@ -73,7 +73,7 @@
         "featureList": [
             "AI-powered plain English summaries via Claude",
             "Side-by-side translation with annotated original",
-            "150+ term meteorological jargon glossary",
+            "110+ term meteorological jargon glossary",
             "Forecaster confidence indicator",
             "Zulu to local time conversion (DST-aware)",
             "Active weather alerts with full detail view",
@@ -108,7 +108,7 @@
                 "name": "How does Plaincast translate NWS forecasts?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Plaincast uses Anthropic's Claude AI to summarize each forecast section into natural, readable prose. It also annotates the original text with a 150+ term jargon glossary, converts Zulu (UTC) times to local time zones, and highlights key information for quick scanning."
+                    "text": "Plaincast uses Anthropic's Claude AI to summarize each forecast section into natural, readable prose. It also annotates the original text with a 110+ term jargon glossary, converts Zulu (UTC) times to local time zones, and highlights key information for quick scanning."
                 }
             },
             {
@@ -158,7 +158,7 @@
             {
                 "@type": "HowToStep",
                 "name": "Check the original with annotations",
-                "text": "The right column shows the original forecast text with 150+ meteorological jargon terms highlighted. Hover or tap any highlighted term to see its definition."
+                "text": "The right column shows the original forecast text with 110+ meteorological jargon terms highlighted. Hover or tap any highlighted term to see its definition."
             },
             {
                 "@type": "HowToStep",
@@ -180,7 +180,7 @@
     <div class="header-row">
         <h1>Plaincast</h1>
         <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode"><svg id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-        <select id="office-select">
+        <select id="office-select" aria-label="NWS forecast office">
             <optgroup label="Northeast">
                 <option value="OKX">New York (OKX)</option>
                 <option value="BOX">Boston (BOX)</option>
