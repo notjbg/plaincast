@@ -996,15 +996,20 @@ function findNearestOffice(lat, lon) {
 // ─── Init ───────────────────────────────────────────────────────────
 const officeSelect = document.getElementById('office-select');
 
-// Office priority: URL param > localStorage > geolocation > LOX
+// Office priority: ?office= > /o/<CODE>/ path > localStorage > geolocation > LOX
 const urlParams = new URLSearchParams(window.location.search);
 const urlOffice = urlParams.get('office')?.toUpperCase();
+const pathMatch = window.location.pathname.match(/\/o\/([A-Za-z]{3})\/?$/);
+const pathOffice = pathMatch ? pathMatch[1].toUpperCase() : null;
 const savedOffice = (() => { try { return localStorage.getItem('plaincast-office'); } catch(e) { return null; } })();
+const hasOption = (o) => o && officeSelect.querySelector(`option[value="${o}"]`);
 let initialOffice = 'LOX';
 
-if (urlOffice && officeSelect.querySelector(`option[value="${urlOffice}"]`)) {
+if (hasOption(urlOffice)) {
     initialOffice = urlOffice;
-} else if (savedOffice && officeSelect.querySelector(`option[value="${savedOffice}"]`)) {
+} else if (hasOption(pathOffice)) {
+    initialOffice = pathOffice; // per-office SEO landing page (/o/OKX/)
+} else if (hasOption(savedOffice)) {
     initialOffice = savedOffice;
 }
 officeSelect.value = initialOffice;
@@ -1012,7 +1017,9 @@ officeSelect.value = initialOffice;
 function updateTitle(office) {
     const opt = officeSelect.querySelector(`option[value="${office}"]`);
     const name = opt ? opt.textContent.replace(/\s*\([^)]+\)/, '') : office;
-    document.title = `${name} Forecast - Plaincast`;
+    // Match the baked per-office SEO <title> (scripts/build-offices.mjs) so the
+    // JS-rendered title agrees with what static crawlers see.
+    document.title = `${name} NWS Forecast in Plain English · Plaincast`;
 }
 
 function selectOffice(office, updateUrl) {
@@ -1046,7 +1053,7 @@ updateTitle(initialOffice);
 fetchAFD(initialOffice);
 
 // Geolocation: auto-detect after initial load (non-blocking)
-if (!urlOffice && !savedOffice && navigator.geolocation) {
+if (!urlOffice && !pathOffice && !savedOffice && navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             const detected = findNearestOffice(pos.coords.latitude, pos.coords.longitude);
