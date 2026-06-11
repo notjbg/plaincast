@@ -7,6 +7,31 @@ mock.module('ai', () => ({
     generateText: (...args) => mockGenerateText(...args),
 }));
 
+// Mock the NWS helpers used for AFD-source verification. The fake product text
+// contains validBody().text, so legitimate bodies pass verification. Set
+// mockAFDThrows to simulate an NWS outage (handler should then fail open).
+let mockAFDThrows = false;
+const AFD_PRODUCT_TEXT = `000
+FXUS66 KLOX 241825
+AFDLOX
+
+.SYNOPSIS...A dry pattern holds through the weekend with highs in the low 80s across the valleys and mountains through Tuesday afternoon. Marine layer returns midweek.
+
+&&
+
+.AVIATION /18Z TAF THROUGH 18Z WEDNESDAY/...
+VFR conditions expected through the period.
+
+$$`;
+mock.module('../api/_utils.js', () => ({
+    fetchAFDList: async () => {
+        if (mockAFDThrows) throw new Error('NWS down');
+        return [{ id: 'p1', '@id': 'https://api.weather.gov/products/p1' }];
+    },
+    fetchAFDProduct: async () => ({ productText: AFD_PRODUCT_TEXT }),
+    productUrlFromItem: (item) => item?.['@id'] || null,
+}));
+
 const { default: handler } = await import('../api/translate.js');
 
 function createRes() {
@@ -47,6 +72,16 @@ const validBody = () => ({
     section: 'Synopsis',
     office: 'LOX',
     issuanceTime: '2026-03-24T18:25:00+00:00',
+});
+
+// Bust the translation cache via a unique issuanceTime (part of the cache key)
+// rather than mutating `text` — that keeps `text` a clean substring of the
+// mocked AFD so source-verification still passes.
+let timeCounter = 0;
+const freshBody = (overrides = {}) => ({
+    ...validBody(),
+    issuanceTime: `2026-03-24T18:25:00.${String(timeCounter++).padStart(3, '0')}Z`,
+    ...overrides,
 });
 
 describe('POST /api/translate — method & CORS', () => {
@@ -183,8 +218,7 @@ describe('POST /api/translate — happy path & cache', () => {
     });
 
     it('returns 200 with the translation on first call', async () => {
-        const body = { ...validBody(), text: validBody().text + ' happy-' + Math.random() };
-        const req = createReq({ body });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(200);
@@ -193,8 +227,7 @@ describe('POST /api/translate — happy path & cache', () => {
     });
 
     it('returns cached:true on second identical call', async () => {
-        const body = validBody();
-        body.text += ' unique-cache-test-marker-' + Math.random();
+        const body = freshBody();
 
         const first = createRes();
         await handler(createReq({ body }), first);
@@ -215,11 +248,7 @@ describe('POST /api/translate — happy path & cache', () => {
             aiArgs = args;
             return { text: 'marine layer clears by afternoon', finishReason: 'stop' };
         };
-        const body = {
-            ...validBody(),
-            office: 'lox',
-            text: validBody().text + ' lowercase-office-' + Math.random(),
-        };
+        const body = freshBody({ office: 'lox' });
         const res = createRes();
         await handler(createReq({ body }), res);
 
@@ -232,7 +261,7 @@ describe('POST /api/translate — happy path & cache', () => {
 describe('POST /api/translate — AI failure paths', () => {
     it('returns 503 when the model trips the content filter', async () => {
         mockGenerateText = async () => ({ text: 'redacted', finishReason: 'content-filter' });
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' content-filter-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(503);
@@ -241,7 +270,7 @@ describe('POST /api/translate — AI failure paths', () => {
 
     it('returns 503 (not 502) when content-filter also empties the text', async () => {
         mockGenerateText = async () => ({ text: '', finishReason: 'content-filter' });
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' cf-empty-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(503);
@@ -250,7 +279,7 @@ describe('POST /api/translate — AI failure paths', () => {
 
     it('returns 502 when the model returns empty text', async () => {
         mockGenerateText = async () => ({ text: '', finishReason: 'stop' });
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' empty-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(502);
@@ -262,7 +291,7 @@ describe('POST /api/translate — AI failure paths', () => {
             err.name = 'AbortError';
             throw err;
         };
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' abort-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(504);
@@ -274,7 +303,7 @@ describe('POST /api/translate — AI failure paths', () => {
             err.name = 'TimeoutError';
             throw err;
         };
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' timeout-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(504);
@@ -282,7 +311,7 @@ describe('POST /api/translate — AI failure paths', () => {
 
     it('returns 500 on unexpected errors', async () => {
         mockGenerateText = async () => { throw new Error('boom'); };
-        const req = createReq({ body: { ...validBody(), text: validBody().text + ' boom-' + Math.random() } });
+        const req = createReq({ body: freshBody() });
         const res = createRes();
         await handler(req, res);
         expect(res.statusCode).toBe(500);
@@ -297,7 +326,7 @@ describe('POST /api/translate — rate limiting', () => {
         let lastStatus = 0;
         for (let i = 0; i < 31; i++) {
             const req = createReq({
-                body: { ...validBody(), text: validBody().text + ` rl-${i}-${Math.random()}` },
+                body: freshBody(),
                 headers: { 'x-forwarded-for': ip },
             });
             const res = createRes();
@@ -305,5 +334,38 @@ describe('POST /api/translate — rate limiting', () => {
             lastStatus = res.statusCode;
         }
         expect(lastStatus).toBe(429);
+    });
+});
+
+describe('POST /api/translate — AFD-source verification', () => {
+    beforeEach(() => {
+        mockGenerateText = async () => ({ text: 'ok', finishReason: 'stop' });
+        mockAFDThrows = false;
+    });
+
+    it('returns 403 when the text is not part of the office AFD', async () => {
+        const req = createReq({ body: freshBody({ text: 'This sentence is not present in any real area forecast discussion today.' }) });
+        const res = createRes();
+        await handler(req, res);
+        expect(res.statusCode).toBe(403);
+        expect(res.body.error).toMatch(/forecast/i);
+    });
+
+    it('returns 400 when office is missing (required for verification)', async () => {
+        const { office, ...noOffice } = freshBody();
+        const req = createReq({ body: noOffice });
+        const res = createRes();
+        await handler(req, res);
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toMatch(/office/i);
+    });
+
+    it('fails open (does not 403) when the AFD source is unreachable', async () => {
+        mockAFDThrows = true;
+        // Use an office with no cached AFD texts so the (throwing) fetch is hit.
+        const req = createReq({ body: freshBody({ office: 'OKX', text: 'Unverifiable text that is not in any AFD product at all here today.' }) });
+        const res = createRes();
+        await handler(req, res);
+        expect(res.statusCode).toBe(200);
     });
 });
