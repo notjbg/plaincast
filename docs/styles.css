@@ -162,6 +162,28 @@ body {
     .changelog-line { padding-left: 1.25rem; padding-right: 1.25rem; }
 }
 
+/* Visually-hidden live region + offscreen labels for screen readers */
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Confidence label — contrast-safe (WCAG 1.4.3), theme-aware. The bar fill
+   keeps its saturated color inline; only the text label uses these. */
+.confidence-text.conf-high { color: #15803d; }
+.confidence-text.conf-moderate { color: #0f766e; }
+.confidence-text.conf-mixed { color: #b45309; }
+.confidence-text.conf-low { color: #b91c1c; }
+.dark .confidence-text.conf-high { color: #4ade80; }
+.dark .confidence-text.conf-moderate { color: #5eead4; }
+.dark .confidence-text.conf-mixed { color: #fbbf24; }
+.dark .confidence-text.conf-low { color: #f87171; }
+
 .forecast-meta {
     max-width: 1100px;
     margin: 0 auto;

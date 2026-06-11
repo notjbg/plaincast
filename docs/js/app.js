@@ -340,6 +340,12 @@ function extractTakeaway(sections) {
 }
 
 // ─── Confidence indicator ────────────────────────────────────────────
+// Visually-hidden live region announcer for screen readers (see #sr-status).
+function announce(msg) {
+    const el = document.getElementById('sr-status');
+    if (el) el.textContent = msg;
+}
+
 function displayConfidence(fullText) {
     const container = document.getElementById('confidence-container');
     const bar = document.getElementById('confidence-bar');
@@ -408,15 +414,17 @@ function displayConfidence(fullText) {
     // Score: 0 (all uncertain) to 100 (all certain)
     const score = Math.round((certainScore / total) * 100);
 
-    // Map to label and color
-    let label, color;
-    if (score >= 75) { label = 'High'; color = '#16a34a'; }
-    else if (score >= 50) { label = 'Moderate'; color = '#0F766E'; }
-    else if (score >= 30) { label = 'Mixed'; color = '#d97706'; }
-    else { label = 'Low'; color = '#dc2626'; }
+    // The bar fill is a graphical object (3:1 suffices), but the text label
+    // needs 4.5:1 — so the label gets a theme-aware .conf-* class (styles.css)
+    // instead of the saturated bar color, which failed contrast in one theme.
+    let label, barColor;
+    if (score >= 75) { label = 'High'; barColor = '#16a34a'; }
+    else if (score >= 50) { label = 'Moderate'; barColor = '#0F766E'; }
+    else if (score >= 30) { label = 'Mixed'; barColor = '#d97706'; }
+    else { label = 'Low'; barColor = '#dc2626'; }
 
     bar.style.width = `${score}%`;
-    bar.style.background = color;
+    bar.style.background = barColor;
     bar.setAttribute('role', 'meter');
     bar.setAttribute('aria-valuenow', score);
     bar.setAttribute('aria-valuemin', 0);
@@ -424,7 +432,8 @@ function displayConfidence(fullText) {
     bar.setAttribute('aria-label', `Forecaster confidence: ${label}`);
     bar.title = `Confidence score: ${score}%`;
     text.textContent = label;
-    text.style.color = color;
+    text.className = 'confidence-text conf-' + label.toLowerCase();
+    text.style.color = ''; // contrast-safe color comes from the .conf-* class
     container.style.display = '';
 }
 
@@ -432,10 +441,11 @@ function displayConfidence(fullText) {
 // Alert modal — data store keyed by index (avoids inline JSON / XSS)
 const ALERT_DATA = {};
 let alertIdx = 0;
+let lastModalFocus = null; // restore focus to the opener when a modal closes
 
 function showAlertModal(data) {
+    lastModalFocus = document.activeElement;
     const overlay = document.getElementById('alert-modal-overlay');
-    const modal = overlay.querySelector('.alert-modal');
     document.getElementById('alert-modal-title').textContent = data.headline;
     const meta = [];
     if (data.severity) meta.push(data.severity);
@@ -454,6 +464,8 @@ function showAlertModal(data) {
 
 function closeAlertModal() {
     document.getElementById('alert-modal-overlay').classList.remove('open');
+    if (lastModalFocus && lastModalFocus.focus) lastModalFocus.focus();
+    lastModalFocus = null;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -518,8 +530,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const columns = section.querySelector('.columns');
         const view = btn.dataset.view;
         // Update button states
-        section.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+        section.querySelectorAll('[data-view]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         // Update column visibility
         columns.classList.remove('show-plain', 'show-original');
         columns.classList.add(view === 'plain' ? 'show-plain' : 'show-original');
@@ -691,8 +704,8 @@ function render(sections, productContext = {}) {
         <div class="forecast-section"${hiddenAttr} id="section-${safeId(s.key)}" data-section-key="${s.key}">
             <h2 class="section-title">${s.key}</h2>
             <div class="ai-toggle">
-                <button class="ai-toggle-btn active" data-view="plain">Summary</button>
-                <button class="ai-toggle-btn" data-view="original">Original + Annotations</button>
+                <button class="ai-toggle-btn active" data-view="plain" aria-pressed="true">Summary</button>
+                <button class="ai-toggle-btn" data-view="original" aria-pressed="false">Original + Annotations</button>
             </div>
             <div class="columns show-plain">
                 <div>
@@ -806,6 +819,7 @@ async function fetchAFD(office) {
     // Update footer office name
     const footerOffice = document.getElementById('footer-office');
     if (footerOffice) footerOffice.textContent = office;
+    announce(`Loading the ${OFFICE_NAMES[office] || office} forecast`);
 
     // Check cache first (15 min TTL)
     let cached = null;
@@ -866,6 +880,7 @@ async function fetchAFD(office) {
         sectionsEl.textContent = '';
         const errDiv = document.createElement('div');
         errDiv.className = 'loading';
+        errDiv.setAttribute('role', 'alert');
         const msg = document.createElement('div');
         msg.style.cssText = 'font-family:var(--font-ui)';
         msg.textContent = 'Couldn\u2019t load forecast. Check your connection and try again.';
@@ -942,6 +957,8 @@ async function renderAFD(prodData, office) {
             }
         }
     });
+
+    announce(`${OFFICE_NAMES[office] || office} forecast loaded`);
 
     // Run afterRender callbacks (pass orderedSections for diff engine)
     for (const cb of afterRender) cb(prodData, office, orderedSections);
@@ -1026,6 +1043,7 @@ if (!urlOffice && !savedOffice && navigator.geolocation) {
             const detected = findNearestOffice(pos.coords.latitude, pos.coords.longitude);
             if (detected !== initialOffice) {
                 selectOffice(detected);
+                announce(`Showing ${OFFICE_NAMES[detected] || detected}, your nearest office`);
                 const issueEl = document.getElementById('issue-time');
                 if (issueEl) {
                     const flash = document.createElement('span');
@@ -1288,14 +1306,31 @@ if (!navigator.onLine) {
 
 // ─── Keyboard shortcuts ────────────────────────────────────────────
 const kbdOverlay = document.getElementById('kbd-overlay');
-document.getElementById('kbd-hint')?.addEventListener('click', () => {
+let lastKbdFocus = null;
+function openKbd() {
+    if (!kbdOverlay) return;
+    lastKbdFocus = document.activeElement;
     kbdOverlay.classList.add('open');
-    document.getElementById('kbd-close').focus();
-});
-document.getElementById('kbd-close')?.addEventListener('click', () => {
+    document.getElementById('kbd-close')?.focus();
+}
+function closeKbd() {
+    if (!kbdOverlay) return;
     kbdOverlay.classList.remove('open');
+    if (lastKbdFocus && lastKbdFocus.focus) lastKbdFocus.focus();
+    lastKbdFocus = null;
+}
+document.getElementById('kbd-hint')?.addEventListener('click', openKbd);
+document.getElementById('kbd-close')?.addEventListener('click', closeKbd);
+kbdOverlay?.addEventListener('click', (e) => { if (e.target === kbdOverlay) closeKbd(); });
+// Trap Tab within the keyboard-shortcuts overlay while it is open
+kbdOverlay?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !kbdOverlay.classList.contains('open')) return;
+    const f = kbdOverlay.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
-kbdOverlay?.addEventListener('click', (e) => { if (e.target === kbdOverlay) kbdOverlay.classList.remove('open'); });
 
 document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -1320,10 +1355,9 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('office-select')?.focus();
     } else if (e.key === '?') {
         e.preventDefault();
-        kbdOverlay.classList.add('open');
-        document.getElementById('kbd-close').focus();
+        openKbd();
     } else if (e.key === 'Escape') {
-        kbdOverlay.classList.remove('open');
+        closeKbd();
     }
 });
 
