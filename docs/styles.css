@@ -140,6 +140,28 @@ body {
 }
 
 /* Forecast meta strip (confidence + current temp + history) */
+.changelog-line {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0.4rem 2rem 0;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.changelog-label {
+    font-weight: 600;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.72rem;
+    margin-right: 0.45rem;
+    white-space: nowrap;
+}
+@media (max-width: 768px) {
+    .changelog-line { padding-left: 1.25rem; padding-right: 1.25rem; }
+}
+
 .forecast-meta {
     max-width: 1100px;
     margin: 0 auto;

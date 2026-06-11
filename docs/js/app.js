@@ -1165,6 +1165,48 @@ afterRender.push(async (prodData, office) => {
     }
 });
 
+// ─── Forecast Changelog ─────────────────────────────────────────────
+// One quiet, editorial "what changed since the last issuance" line under the
+// Key Takeaway — shown to everyone (the server diffs the latest two AFDs and
+// summarizes the delta once per issuance). The session-based per-section diff
+// below stays as the detailed, expandable view.
+function sinceText(iso) {
+    if (!iso) return 'the last update';
+    try {
+        const tz = OFFICE_TIMEZONES[currentOffice] || 'America/Los_Angeles';
+        const t = new Date(iso).toLocaleString('en-US', { hour: 'numeric', timeZone: tz });
+        return `the ${t} update`;
+    } catch (e) { return 'the last update'; }
+}
+
+function renderChangelog(text, since) {
+    let el = document.getElementById('changelog-line');
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'changelog-line';
+        el.className = 'changelog-line';
+        el.setAttribute('role', 'note');
+        const takeaway = document.getElementById('takeaway-container');
+        if (takeaway) takeaway.insertAdjacentElement('afterend', el);
+        else document.getElementById('forecast-meta')?.insertAdjacentElement('beforebegin', el);
+    }
+    el.innerHTML = `<span class="changelog-label">Since ${escapeHTML(sinceText(since))}</span> ${escapeHTML(text)}`;
+    el.style.display = '';
+}
+
+afterRender.push(async (prodData, office) => {
+    const stale = document.getElementById('changelog-line');
+    if (stale) stale.remove(); // clear the prior office's line while loading
+    try {
+        const res = await fetch(`/api/changelog?office=${office}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (office !== currentOffice) return; // user switched offices mid-fetch
+        renderChangelog(data && data.changelog, data && data.since);
+    } catch (e) { /* silent — the line just doesn't show */ }
+});
+
 // Forecast diff: compare current vs previous AFD
 afterRender.push((prodData, office, sections) => {
     if (!sections) return;
