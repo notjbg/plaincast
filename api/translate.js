@@ -3,6 +3,7 @@
 
 import { generateText } from 'ai';
 import { OFFICE_TIMEZONES } from '../docs/js/offices.js';
+import { fetchAFDList, fetchAFDProduct, productUrlFromItem } from './_utils.js';
 
 // Translation cache: keyed on hash(text + section + office), 4-hour TTL
 // Fluid Compute shares instances across concurrent requests, so this persists
@@ -72,6 +73,48 @@ const rateLimitCleanupTimer = setInterval(() => {
     if (rateLimitMap.size > 10_000) rateLimitMap.clear();
 }, 5 * 60 * 1000);
 rateLimitCleanupTimer.unref?.();
+
+// ── AFD-source verification ──────────────────────────────────────────
+// Only translate text that actually appears in the office's recent AFD, so the
+// public endpoint can't be used to translate arbitrary (billable) text.
+// An AFD is identical for everyone for hours, so this is cached per office.
+const afdTextCache = new Map(); // office -> { texts: string[], time }
+const AFD_TEXT_TTL = 10 * 60 * 1000; // 10 min
+
+function normalizeForMatch(s) {
+    return String(s).toLowerCase().replace(/\$\$|&&/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// True when `text` is a contiguous chunk of one of the recent AFD products.
+// parseSections() output is always a contiguous slice of productText (headers,
+// $$/&& markers and the forecaster tail are removed), so this does not reject
+// legitimate section text. The head+tail fallback tolerates rare edge trims.
+export function textMatchesAFD(text, normalizedProductTexts) {
+    const n = normalizeForMatch(text);
+    if (n.length < 20) return false;
+    return normalizedProductTexts.some(p =>
+        p.includes(n)
+        || (n.length > 160 && p.includes(n.slice(0, 160)) && p.includes(n.slice(-160)))
+    );
+}
+
+async function getOfficeAFDTexts(office) {
+    const entry = afdTextCache.get(office);
+    if (entry && Date.now() - entry.time < AFD_TEXT_TTL) return entry.texts;
+    // Cover the last few issuances so history-browsing still verifies.
+    const items = (await fetchAFDList(office, { signal: AbortSignal.timeout(8000) })).slice(0, 4);
+    const settled = await Promise.all(items.map(async (item) => {
+        try {
+            const url = productUrlFromItem(item);
+            if (!url) return null;
+            const prod = await fetchAFDProduct(url, { signal: AbortSignal.timeout(8000) });
+            return typeof prod?.productText === 'string' ? normalizeForMatch(prod.productText) : null;
+        } catch { return null; }
+    }));
+    const texts = settled.filter(Boolean);
+    if (texts.length) afdTextCache.set(office, { texts, time: Date.now() });
+    return texts;
+}
 
 function ordinal(day) {
     const mod100 = day % 100;
@@ -200,6 +243,10 @@ export default async function handler(req, res) {
     if (hasOffice && (typeof office !== 'string' || !OFFICE_TIMEZONES[officeCode])) {
         return res.status(400).json({ error: 'Invalid office' });
     }
+    // Office is required — it's the key for AFD-source verification below.
+    if (!hasOffice) {
+        return res.status(400).json({ error: 'Office required' });
+    }
     if (issuanceTime !== undefined && (typeof issuanceTime !== 'string' || issuanceTime.length > 50)) {
         return res.status(400).json({ error: 'Invalid issuanceTime' });
     }
@@ -208,6 +255,14 @@ export default async function handler(req, res) {
     const cached = getCachedTranslation(text, sectionLabel, officeCode, issuanceTime);
     if (cached) {
         return res.status(200).json({ translation: cached, cached: true });
+    }
+
+    // Anti-abuse: only translate text that appears in this office's recent AFD.
+    // Fail open if NWS is unreachable so a real outage doesn't kill translation.
+    let afdTexts = [];
+    try { afdTexts = await getOfficeAFDTexts(officeCode); } catch { afdTexts = []; }
+    if (afdTexts.length && !textMatchesAFD(text, afdTexts)) {
+        return res.status(403).json({ error: 'Text does not match a current forecast' });
     }
 
     const systemPrompt = buildSystemPrompt({ section: sectionLabel, office: officeCode, issuanceTime });
