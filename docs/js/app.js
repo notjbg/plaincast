@@ -346,6 +346,12 @@ function announce(msg) {
     if (el) el.textContent = msg;
 }
 
+// Lightweight failure telemetry via Vercel Web Analytics (no-op if not loaded),
+// so the owner can see which offices/sections actually fail in the dashboard.
+function track(name, data) {
+    try { if (window.va) window.va('event', { name, data: data || {} }); } catch (e) { /* never break the page */ }
+}
+
 function displayConfidence(fullText) {
     const container = document.getElementById('confidence-container');
     const bar = document.getElementById('confidence-bar');
@@ -759,6 +765,7 @@ function render(sections, productContext = {}) {
         } catch (err) {
             if (renderGen !== fetchGeneration) return;
             console.debug('AI translation failed for', s.key, err);
+            track('ai-translate-fail', { office: currentOffice, section: s.key });
             const loadingLabel = plainCol.querySelector('.ai-loading-label');
             if (loadingLabel) loadingLabel.remove();
         }
@@ -896,6 +903,7 @@ async function fetchAFD(office) {
         errDiv.appendChild(detail);
         sectionsEl.appendChild(errDiv);
         console.error(err);
+        track('afd-fetch-fail', { office });
     }
 }
 
@@ -927,6 +935,7 @@ async function renderAFD(prodData, office) {
 
     if (sections.length === 0) {
         sectionsEl.innerHTML = '<div class="loading">Could not parse forecast sections.</div>';
+        track('afd-parse-empty', { office });
         return;
     }
 

@@ -89,7 +89,7 @@ export const BASIC_ABBREVIATIONS = [
     [/\bGALE\b/g, 'gale warning'],
     [/\bKTS\b/gi, 'knots'],
     [/\bkt\b/gi, 'knot'],
-    [/\bNM\b/g, 'nautical miles'],
+    [/\b(\d+)\s*NM\b/g, '$1 nautical miles'], // numeric-gated: "20 NM", not "western NM" (New Mexico)
 
     // Airport codes to names
     [/\bKLAX\b/g, 'LAX'],
@@ -131,7 +131,7 @@ export const EXTENDED_ABBREVIATIONS = [
     [/\bSLO\b/g, 'San Luis Obispo'],
     [/\bSBA\b/g, 'Santa Barbara'],
     [/\bVTA\b/g, 'Ventura'],
-    [/\bLA\s+(?:county|basin|area|metro|coast|mountains?|foothills|valleys?)\b/gi, (m) => 'Los Angeles' + m.slice(2)],
+    [/\bLA\s+(?:county|basin|metro|mountains?|foothills|valleys?)\b/gi, (m) => 'Los Angeles' + m.slice(2)], // dropped "coast"/"area" — ambiguous with Louisiana (LIX/SHV/LCH)
 
     // Sky conditions with heights: BKN015 → broken clouds at 1,500 ft
     [/\bBKN(\d{3})\b/g, (_, h) => `broken clouds at ${parseInt(h)*100} ft`],
