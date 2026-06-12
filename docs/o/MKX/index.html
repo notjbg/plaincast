@@ -6,7 +6,7 @@
     <title>Milwaukee NWS Forecast in Plain English · Plaincast</title>
     <meta name="description" content="The latest National Weather Service Area Forecast Discussion for Milwaukee (MKX), translated into plain English — the real forecast, decoded. Updated 3–4 times daily.">
     <meta name="keywords" content="NWS, weather forecast, Area Forecast Discussion, AFD, plain English, meteorology, National Weather Service, weather translation, jargon decoder">
-    <meta name="theme-color" content="#0F766E">
+    <meta name="theme-color" content="#0F4C45">
     <meta name="author" content="Jonah Berg">
     <meta property="og:locale" content="en_US">
     <meta name="google-site-verification" content="IdNCtGpFPAc0ZPT6T41Z-KgfP-AzHr7qfAn-7asX96Y">
@@ -14,17 +14,23 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
     <script defer src="/_vercel/insights/script.js"></script>
     <script defer src="/_vercel/speed-insights/script.js"></script>
     <script>
-      // Apply theme before paint to prevent flash
+      // Apply theme + time-of-day phase before paint to prevent flash
       (function() {
         var stored = localStorage.getItem('theme');
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         if (stored === 'dark' || (!stored && prefersDark)) {
           document.documentElement.classList.add('dark');
         }
+        // Best-effort initial sky phase from the *viewer's* clock; corrected to the
+        // office timezone once the forecast loads. Avoids a flash of the wrong sky.
+        var h = new Date().getHours();
+        var phase = h < 5 ? 'night' : h < 7 ? 'dawn' : h < 10 ? 'morning'
+                  : h < 16 ? 'midday' : h < 18 ? 'golden' : h < 20 ? 'dusk' : 'night';
+        document.documentElement.setAttribute('data-phase', phase);
       })();
     </script>
 
@@ -174,164 +180,209 @@
 </head>
 <body>
 
+<!-- Living atmosphere: a fixed, time-of-day-tinted sky behind the paper. Decorative. -->
+<div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere-wash"></div>
+    <div class="atmosphere-glow"></div>
+    <div class="atmosphere-grain"></div>
+</div>
+
 <a href="#sections" class="skip-link">Skip to forecast</a>
 <div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
 
-<div class="header">
-    <div class="header-row">
-        <h1>Plaincast</h1>
-        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode"><svg id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-        <select id="office-select" aria-label="NWS forecast office">
-            <optgroup label="Northeast">
-                <option value="OKX">New York (OKX)</option>
-                <option value="BOX">Boston (BOX)</option>
-                <option value="PHI">Philadelphia (PHI)</option>
-                <option value="LWX">Washington, DC (LWX)</option>
-                <option value="PBZ">Pittsburgh (PBZ)</option>
-                <option value="BUF">Buffalo (BUF)</option>
-                <option value="RAH">Raleigh (RAH)</option>
-                <option value="CHS">Charleston, SC (CHS)</option>
-            </optgroup>
-            <optgroup label="Southeast">
-                <option value="FFC">Atlanta (FFC)</option>
-                <option value="MFL">Miami (MFL)</option>
-                <option value="JAX">Jacksonville (JAX)</option>
-                <option value="TBW">Tampa Bay (TBW)</option>
-                <option value="BMX">Birmingham (BMX)</option>
-                <option value="OHX">Nashville (OHX)</option>
-                <option value="MRX">Morristown (MRX)</option>
-                <option value="JAN">Jackson, MS (JAN)</option>
-            </optgroup>
-            <optgroup label="Midwest">
-                <option value="LOT">Chicago (LOT)</option>
-                <option value="DTX">Detroit (DTX)</option>
-                <option value="IND">Indianapolis (IND)</option>
-                <option value="CLE">Cleveland (CLE)</option>
-                <option value="ILN">Cincinnati (ILN)</option>
-                <option value="MKX">Milwaukee (MKX)</option>
-                <option value="GRR">Grand Rapids (GRR)</option>
-                <option value="LSX">St. Louis (LSX)</option>
-                <option value="EAX">Kansas City (EAX)</option>
-                <option value="DMX">Des Moines (DMX)</option>
-            </optgroup>
-            <optgroup label="Northern Plains">
-                <option value="MPX">Minneapolis / Twin Cities (MPX)</option>
-                <option value="DLH">Duluth (DLH)</option>
-                <option value="FSD">Sioux Falls (FSD)</option>
-                <option value="BIS">Bismarck (BIS)</option>
-                <option value="OAX">Omaha (OAX)</option>
-                <option value="FGF">Grand Forks (FGF)</option>
-            </optgroup>
-            <optgroup label="South Central">
-                <option value="FWD">Dallas / Fort Worth (FWD)</option>
-                <option value="HGX">Houston (HGX)</option>
-                <option value="EWX">San Antonio (EWX)</option>
-                <option value="OUN">Oklahoma City (OUN)</option>
-                <option value="TSA">Tulsa (TSA)</option>
-                <option value="LZK">Little Rock (LZK)</option>
-                <option value="LIX">New Orleans (LIX)</option>
-                <option value="SHV">Shreveport (SHV)</option>
-                <option value="LCH">Lake Charles (LCH)</option>
-            </optgroup>
-            <optgroup label="Rockies & Mountain West">
-                <option value="BOU">Denver (BOU)</option>
-                <option value="PUB">Pueblo (PUB)</option>
-                <option value="GJT">Grand Junction (GJT)</option>
-                <option value="SLC">Salt Lake City (SLC)</option>
-                <option value="BOI">Boise (BOI)</option>
-                <option value="BYZ">Billings (BYZ)</option>
-                <option value="MSO">Missoula (MSO)</option>
-                <option value="RIW">Riverton (RIW)</option>
-            </optgroup>
-            <optgroup label="Southwest">
-                <option value="PSR">Phoenix (PSR)</option>
-                <option value="VEF">Las Vegas (VEF)</option>
-                <option value="TWC">Tucson (TWC)</option>
-                <option value="FGZ">Flagstaff (FGZ)</option>
-                <option value="ABQ">Albuquerque (ABQ)</option>
-                <option value="EPZ">El Paso (EPZ)</option>
-            </optgroup>
-            <optgroup label="Pacific">
-                <option value="LOX">Los Angeles (LOX)</option>
-                <option value="SGX">San Diego (SGX)</option>
-                <option value="MTR">San Francisco (MTR)</option>
-                <option value="STO">Sacramento (STO)</option>
-                <option value="HNX">Central CA / Hanford (HNX)</option>
-                <option value="EKA">Eureka (EKA)</option>
-                <option value="SEW">Seattle (SEW)</option>
-                <option value="PQR">Portland (PQR)</option>
-                <option value="MFR">Medford (MFR)</option>
-                <option value="OTX">Spokane (OTX)</option>
-            </optgroup>
-            <optgroup label="Alaska & Pacific Islands">
-                <option value="AFC">Anchorage (AFC)</option>
-                <option value="AFG">Fairbanks (AFG)</option>
-                <option value="HFO">Honolulu (HFO)</option>
-            </optgroup>
-        </select>
-    </div>
-    <div class="header-meta">
-        <span class="issue-time" id="issue-time"></span>
-        <span class="meta-sep">·</span>
-        <button class="share-btn" id="share-btn" aria-label="Share forecast link">Share ↗</button>
-        <span class="share-toast" id="share-toast">Copied!</span>
-        <button class="kbd-hint" id="kbd-hint" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
-        <span class="meta-sep">·</span>
-        <details class="explainer">
-            <summary>What is this?</summary>
-            <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
-        </details>
-    </div>
-</div>
-
-<div class="banner" id="refresh-banner" style="display:none" role="status" aria-live="polite">
-    <div class="banner-box banner-blue">
-        <span>New forecast available</span>
-        <button class="banner-action" id="refresh-load">Load</button>
-        <button class="banner-dismiss" id="refresh-dismiss" aria-label="Dismiss">&times;</button>
-    </div>
-</div>
-
-<div class="banner" id="offline-banner" style="display:none" role="alert">
-    <div class="banner-box banner-amber">
-        <span id="offline-text">Offline — showing cached forecast</span>
-    </div>
-</div>
-
-<div class="takeaway" id="takeaway-container" style="display:none">
-    <div class="takeaway-box">
-        <div class="takeaway-label">Key Takeaway</div>
-        <div class="takeaway-text" id="takeaway-text"></div>
-    </div>
-</div>
-
-<div class="forecast-meta" id="forecast-meta">
-    <div class="forecast-meta-inner">
-        <div class="confidence" id="confidence-container" style="display:none">
-            <div class="confidence-box">
-                <div class="confidence-label">Forecaster Confidence</div>
-                <div class="confidence-bar-wrap">
-                    <div class="confidence-bar" id="confidence-bar"></div>
-                </div>
-                <div class="confidence-text" id="confidence-text"></div>
-            </div>
+<div class="sheet">
+<!-- Utility bar: office picker + reading controls -->
+<div class="utility-bar">
+    <div class="wrap utility-inner">
+        <label class="office-field">
+            <span class="office-field-label">Forecast office</span>
+            <select id="office-select" aria-label="NWS forecast office">
+                <optgroup label="Northeast">
+                    <option value="OKX">New York (OKX)</option>
+                    <option value="BOX">Boston (BOX)</option>
+                    <option value="PHI">Philadelphia (PHI)</option>
+                    <option value="LWX">Washington, DC (LWX)</option>
+                    <option value="PBZ">Pittsburgh (PBZ)</option>
+                    <option value="BUF">Buffalo (BUF)</option>
+                    <option value="RAH">Raleigh (RAH)</option>
+                    <option value="CHS">Charleston, SC (CHS)</option>
+                </optgroup>
+                <optgroup label="Southeast">
+                    <option value="FFC">Atlanta (FFC)</option>
+                    <option value="MFL">Miami (MFL)</option>
+                    <option value="JAX">Jacksonville (JAX)</option>
+                    <option value="TBW">Tampa Bay (TBW)</option>
+                    <option value="BMX">Birmingham (BMX)</option>
+                    <option value="OHX">Nashville (OHX)</option>
+                    <option value="MRX">Morristown (MRX)</option>
+                    <option value="JAN">Jackson, MS (JAN)</option>
+                </optgroup>
+                <optgroup label="Midwest">
+                    <option value="LOT">Chicago (LOT)</option>
+                    <option value="DTX">Detroit (DTX)</option>
+                    <option value="IND">Indianapolis (IND)</option>
+                    <option value="CLE">Cleveland (CLE)</option>
+                    <option value="ILN">Cincinnati (ILN)</option>
+                    <option value="MKX">Milwaukee (MKX)</option>
+                    <option value="GRR">Grand Rapids (GRR)</option>
+                    <option value="LSX">St. Louis (LSX)</option>
+                    <option value="EAX">Kansas City (EAX)</option>
+                    <option value="DMX">Des Moines (DMX)</option>
+                </optgroup>
+                <optgroup label="Northern Plains">
+                    <option value="MPX">Minneapolis / Twin Cities (MPX)</option>
+                    <option value="DLH">Duluth (DLH)</option>
+                    <option value="FSD">Sioux Falls (FSD)</option>
+                    <option value="BIS">Bismarck (BIS)</option>
+                    <option value="OAX">Omaha (OAX)</option>
+                    <option value="FGF">Grand Forks (FGF)</option>
+                </optgroup>
+                <optgroup label="South Central">
+                    <option value="FWD">Dallas / Fort Worth (FWD)</option>
+                    <option value="HGX">Houston (HGX)</option>
+                    <option value="EWX">San Antonio (EWX)</option>
+                    <option value="OUN">Oklahoma City (OUN)</option>
+                    <option value="TSA">Tulsa (TSA)</option>
+                    <option value="LZK">Little Rock (LZK)</option>
+                    <option value="LIX">New Orleans (LIX)</option>
+                    <option value="SHV">Shreveport (SHV)</option>
+                    <option value="LCH">Lake Charles (LCH)</option>
+                </optgroup>
+                <optgroup label="Rockies &amp; Mountain West">
+                    <option value="BOU">Denver (BOU)</option>
+                    <option value="PUB">Pueblo (PUB)</option>
+                    <option value="GJT">Grand Junction (GJT)</option>
+                    <option value="SLC">Salt Lake City (SLC)</option>
+                    <option value="BOI">Boise (BOI)</option>
+                    <option value="BYZ">Billings (BYZ)</option>
+                    <option value="MSO">Missoula (MSO)</option>
+                    <option value="RIW">Riverton (RIW)</option>
+                </optgroup>
+                <optgroup label="Southwest">
+                    <option value="PSR">Phoenix (PSR)</option>
+                    <option value="VEF">Las Vegas (VEF)</option>
+                    <option value="TWC">Tucson (TWC)</option>
+                    <option value="FGZ">Flagstaff (FGZ)</option>
+                    <option value="ABQ">Albuquerque (ABQ)</option>
+                    <option value="EPZ">El Paso (EPZ)</option>
+                </optgroup>
+                <optgroup label="Pacific">
+                    <option value="LOX">Los Angeles (LOX)</option>
+                    <option value="SGX">San Diego (SGX)</option>
+                    <option value="MTR">San Francisco (MTR)</option>
+                    <option value="STO">Sacramento (STO)</option>
+                    <option value="HNX">Central CA / Hanford (HNX)</option>
+                    <option value="EKA">Eureka (EKA)</option>
+                    <option value="SEW">Seattle (SEW)</option>
+                    <option value="PQR">Portland (PQR)</option>
+                    <option value="MFR">Medford (MFR)</option>
+                    <option value="OTX">Spokane (OTX)</option>
+                </optgroup>
+                <optgroup label="Alaska &amp; Pacific Islands">
+                    <option value="AFC">Anchorage (AFC)</option>
+                    <option value="AFG">Fairbanks (AFG)</option>
+                    <option value="HFO">Honolulu (HFO)</option>
+                </optgroup>
+            </select>
+        </label>
+        <div class="utility-tools">
+            <button class="share-btn" id="share-btn" aria-label="Share forecast link">Share</button>
+            <span class="share-toast" id="share-toast">Link copied</span>
+            <button class="kbd-hint" id="kbd-hint" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">?</button>
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode"><svg id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="theme-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
         </div>
     </div>
 </div>
 
-<nav class="section-nav" id="section-nav"></nav>
+<!-- Masthead: the nameplate, motto, and dateline -->
+<header class="masthead header">
+    <div class="wrap masthead-inner">
+        <div class="folio folio-left" id="folio-date"></div>
+        <div class="nameplate-block">
+            <h1 class="nameplate">Plaincast</h1>
+        </div>
+        <div class="folio folio-right" id="folio-office"></div>
+        <p class="motto">What the forecast actually says</p>
+        <div class="rule-double" role="presentation"></div>
+        <p class="dateline">
+            <span class="dateline-city" id="dateline-city">Loading…</span>
+            <span class="dateline-sep" aria-hidden="true">·</span>
+            <span class="dateline-date" id="dateline-date"></span>
+            <span class="dateline-sep" aria-hidden="true">·</span>
+            <span class="dateline-edition" id="dateline-edition"></span>
+        </p>
+        <dl class="ledger" id="ledger" aria-label="Current conditions and almanac"></dl>
+    </div>
+</header>
 
-<div class="sections" id="sections">
-    <div class="loading" id="loading">Loading forecast…</div>
+<div class="banner" id="refresh-banner" style="display:none" role="status" aria-live="polite">
+    <div class="wrap"><div class="banner-box banner-blue">
+        <span>A newer edition has been issued</span>
+        <button class="banner-action" id="refresh-load">Read it</button>
+        <button class="banner-dismiss" id="refresh-dismiss" aria-label="Dismiss">&times;</button>
+    </div></div>
 </div>
 
-<div class="footer">
-    <span>Data: <a href="https://www.weather.gov" target="_blank" rel="noopener noreferrer">NWS <span id="footer-office">LOX</span></a></span>
-    <span>Summaries powered by <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer">Claude</a></span>
-    <a href="" id="raw-link" target="_blank" rel="noopener noreferrer">View raw AFD</a>
-    <a href="https://github.com/notjbg/plaincast" target="_blank" rel="noopener noreferrer">GitHub</a>
-    <span class="footer-credit">Built by <a href="https://github.com/notjbg" target="_blank" rel="noopener noreferrer">Jonah Berg</a></span>
+<div class="banner" id="offline-banner" style="display:none" role="alert">
+    <div class="wrap"><div class="banner-box banner-amber">
+        <span id="offline-text">Offline — showing the last edition you read</span>
+    </div></div>
 </div>
+
+<main class="wrap main">
+
+    <section class="lede" id="takeaway-container" style="display:none">
+        <div class="lede-kicker">The Lede</div>
+        <div class="takeaway-box">
+            <div class="takeaway-label">Key Takeaway</div>
+            <div class="takeaway-text" id="takeaway-text"></div>
+        </div>
+        <p class="byline" id="byline"></p>
+        <p class="lede-meta">
+            <span class="issue-time" id="issue-time"></span>
+            <span class="confidence" id="confidence-container" style="display:none">
+                <span class="confidence-sep" aria-hidden="true">·</span>
+                <span class="confidence-label">Forecaster's confidence</span>
+                <span class="confidence-bar-wrap"><span class="confidence-bar" id="confidence-bar"></span></span>
+                <span class="confidence-text" id="confidence-text"></span>
+            </span>
+        </p>
+    </section>
+
+    <details class="explainer">
+        <summary>What is an Area Forecast Discussion?</summary>
+        <p>Area Forecast Discussions are the real forecasts, written 3 to 4 times daily by NWS meteorologists reading the models and interpreting what they mean for your area. They offer far deeper insight than any weather app, but they're written in dense meteorological shorthand. Plaincast uses Anthropic's Claude to summarize them into plain English, side by side with the annotated original.</p>
+    </details>
+
+    <nav class="section-nav" id="section-nav" aria-label="Sections in this discussion"></nav>
+
+    <div class="sections" id="sections">
+        <div class="loading" id="loading">Setting the type…</div>
+    </div>
+</main>
+
+<footer class="colophon">
+    <div class="wrap colophon-inner">
+        <div class="colophon-rule" role="presentation"></div>
+        <p class="colophon-line colophon-editions" id="editions-line" style="display:none">
+            <span class="editions-label">Earlier editions</span>
+            <span id="editions-slot"></span>
+        </p>
+        <p class="colophon-line">
+            <span class="colophon-mark">❧</span>
+            Reported by the <a href="https://www.weather.gov" target="_blank" rel="noopener noreferrer">National Weather Service, <span id="footer-office">LOX</span></a>.
+            Translated by <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer">Claude</a>.
+        </p>
+        <p class="colophon-line colophon-links">
+            <a href="" id="raw-link" target="_blank" rel="noopener noreferrer">Read the original discussion</a>
+            <span class="dot" aria-hidden="true">·</span>
+            <a href="https://github.com/notjbg/plaincast" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+            <span class="dot" aria-hidden="true">·</span>
+            <span class="colophon-credit">Set by <a href="https://github.com/notjbg" target="_blank" rel="noopener noreferrer">Jonah Berg</a></span>
+        </p>
+    </div>
+</footer>
+</div><!-- /.sheet -->
 
 <script type="module" src="/js/app.js"></script>
 
@@ -339,8 +390,8 @@
 <div class="alert-modal-overlay" id="kbd-overlay">
     <div class="alert-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
         <button class="alert-modal-close" id="kbd-close" aria-label="Close">&times;</button>
-        <h3 style="margin-bottom:1rem">Keyboard Shortcuts</h3>
-        <div style="font-family:var(--font-ui);font-size:0.85rem;line-height:2">
+        <h3 class="modal-title">Keyboard Shortcuts</h3>
+        <div class="kbd-list">
             <div><kbd>j</kbd> Next section</div>
             <div><kbd>k</kbd> Previous section</div>
             <div><kbd>/</kbd> Search offices</div>
@@ -354,7 +405,7 @@
 <div class="alert-modal-overlay" id="alert-modal-overlay">
     <div class="alert-modal" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
         <button class="alert-modal-close" id="alert-modal-close" aria-label="Close alert detail">&times;</button>
-        <h3 id="alert-modal-title"></h3>
+        <h3 class="modal-title" id="alert-modal-title"></h3>
         <div class="alert-meta" id="alert-modal-meta"></div>
         <div class="alert-body" id="alert-modal-body"></div>
     </div>

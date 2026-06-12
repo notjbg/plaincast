@@ -63,6 +63,9 @@ export default async function handler(req, res) {
         }
         const obsData = await obsRes.json();
         const tempC = obsData.properties?.temperature?.value;
+        // Sky phrase (e.g. "Mostly Cloudy", "Light Rain") drives the atmosphere's
+        // condition tint on the client. Optional — null when the station omits it.
+        const condition = obsData.properties?.textDescription || null;
 
         if (tempC === null || tempC === undefined) {
             return res.status(200).json({ temp: null, normal: null, delta: null });
@@ -85,6 +88,7 @@ export default async function handler(req, res) {
             temp: tempF,
             normal,
             delta,
+            condition,
             unit: 'F',
             station,
             office
