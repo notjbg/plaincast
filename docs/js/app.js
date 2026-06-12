@@ -7,6 +7,8 @@ import { computeDiff, renderDiffHTML } from './diff.js';
 let currentOffice = 'LOX';
 let fetchGeneration = 0; // race condition guard for rapid office switching
 let issueTimeDate = null; // for auto-updating "X ago"
+let issuePrefix = ''; // "Issued 4:02 AM PDT" — stable half of the issue-time line
+let viewingHistorical = false; // true while reading an archived edition (skip diff/changelog)
 let currentTranslationObserver = null; // IntersectionObserver for lazy AI translation
 
 // Fetch live alerts and return map of event name → alert URL
@@ -694,32 +696,38 @@ function render(sections, productContext = {}) {
         `<a href="#section-${safeId(s.key)}" aria-label="Jump to ${s.key} section">${s.key}</a>`
     ).join('');
 
+    // The first *narrative* section carries the drop-cap "lede" treatment — never a
+    // bulleted Messages/alerts block (whose first glyph is a list numeral).
+    const NARRATIVE = ['Synopsis', 'Discussion', 'Short Term', 'Near Term', 'Long Term', 'Update'];
+    const ledeKey = (sections.find(s => NARRATIVE.includes(s.key)) || {}).key;
+
     // Render sections with regex translation first (instant), then upgrade with AI lazily
     sectionsEl.innerHTML = sections.map(s => {
         let plainHtml;
         const hiddenAttr = isEmptyAlerts(s) ? ' style="display:none"' : '';
+        const ledeCls = s.key === ledeKey ? ' lede-section' : '';
         if (s.key === 'Active Alerts') {
             plainHtml = formatAlerts(s.text, currentAlerts);
         } else {
             // Show regex translation immediately with AI loading indicator
             const regexHtml = translateToPlainEnglish(s.text);
             plainHtml = regexHtml
-                + '<div class="ai-loading-label"><span class="ai-loading"></span> AI summary loading...</div>';
+                + '<div class="ai-loading-label"><span class="ai-loading"></span> Summarizing…</div>';
         }
         return `
-        <div class="forecast-section"${hiddenAttr} id="section-${safeId(s.key)}" data-section-key="${s.key}">
+        <div class="forecast-section${ledeCls}"${hiddenAttr} id="section-${safeId(s.key)}" data-section-key="${s.key}">
             <h2 class="section-title">${s.key}</h2>
             <div class="ai-toggle">
-                <button class="ai-toggle-btn active" data-view="plain" aria-pressed="true">Summary</button>
-                <button class="ai-toggle-btn" data-view="original" aria-pressed="false">Original + Annotations</button>
+                <button class="ai-toggle-btn active" data-view="plain" aria-pressed="true">In plain English</button>
+                <button class="ai-toggle-btn" data-view="original" aria-pressed="false">The original</button>
             </div>
             <div class="columns show-plain">
                 <div>
-                    <div class="col-label">Summary · Powered by <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;text-decoration-color:var(--border)">Claude</a></div>
+                    <div class="col-label">In plain English · via <a href="https://www.anthropic.com/claude/haiku" target="_blank" rel="noopener noreferrer">Claude</a></div>
                     <div class="plain-col">${plainHtml}</div>
                 </div>
                 <div>
-                    <div class="col-label">Original + Annotations</div>
+                    <div class="col-label">The original · verbatim</div>
                     <div class="annotated-col">${annotateText(s.text)}</div>
                 </div>
             </div>
@@ -806,9 +814,127 @@ function timeAgo(date) {
     return `${days} day${days !== 1 ? 's' : ''} ago`;
 }
 
+// ─── Masthead helpers ───────────────────────────────────────────────
+function localHour(date, tz) {
+    try {
+        return parseInt(date.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: tz }), 10) % 24;
+    } catch (e) { return date.getHours(); }
+}
+
+// NWS issues AFDs roughly 4×/day; name the edition by local issuance hour.
+function editionName(hour) {
+    if (hour >= 3 && hour < 9) return 'Morning';
+    if (hour >= 9 && hour < 14) return 'Midday';
+    if (hour >= 14 && hour < 20) return 'Evening';
+    return 'Late';
+}
+
+// ─── Living sky: time-of-day phase from the city's current local time ───
+function skyPhase(date, tz) {
+    const h = localHour(date, tz);
+    if (h < 5)  return 'night';
+    if (h < 7)  return 'dawn';
+    if (h < 10) return 'morning';
+    if (h < 16) return 'midday';
+    if (h < 18) return 'golden';
+    if (h < 20) return 'dusk';
+    return 'night';
+}
+function applySky(office) {
+    const tz = OFFICE_TIMEZONES[office] || 'America/Los_Angeles';
+    document.documentElement.dataset.phase = skyPhase(new Date(), tz);
+}
+// Re-evaluate the sky every 5 minutes (the CSS 1.8s transition crossfades it).
+setInterval(() => applySky(currentOffice), 5 * 60 * 1000);
+
+// Map an NWS observation phrase to one of our atmosphere conditions.
+function mapCondition(desc) {
+    const d = (desc || '').toLowerCase();
+    if (/(fog|mist|haze|smoke)/.test(d)) return 'fog';
+    if (/(snow|sleet|ice|wintry|flurr)/.test(d)) return 'snow';
+    if (/(rain|shower|drizzle|thunder|storm)/.test(d)) return 'rain';
+    if (/(cloud|overcast)/.test(d)) return 'clouds';
+    return 'clear';
+}
+
+// ─── Almanac: sun + moon ────────────────────────────────────────────
+// Sunrise/sunset via the SunCalc algorithm (Vladimir Agafonkin, BSD-2).
+function sunTimes(lat, lng, date) {
+    const rad = Math.PI / 180, dayMs = 86400000, J1970 = 2440588, J2000 = 2451545;
+    const toDays = d => d.valueOf() / dayMs - 0.5 + J1970 - J2000;
+    const solarMeanAnomaly = d => rad * (357.5291 + 0.98560028 * d);
+    const eclipticLongitude = M => M + rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) + rad * 102.9372 + Math.PI;
+    const declination = L => Math.asin(Math.sin(L) * Math.sin(rad * 23.4397));
+    const fromJulian = j => new Date((j + 0.5 - J1970) * dayMs);
+    const d = toDays(date), lw = rad * -lng, phi = rad * lat;
+    const n = Math.round(d - 0.0009 - lw / (2 * Math.PI));
+    const ds = 0.0009 + (lw) / (2 * Math.PI) + n;
+    const M = solarMeanAnomaly(ds), L = eclipticLongitude(M);
+    const dec = declination(L);
+    const Jnoon = J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    const h0 = rad * -0.833;
+    const cosH = (Math.sin(h0) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
+    if (cosH > 1 || cosH < -1) return null; // polar day / night
+    const w = Math.acos(cosH);
+    const dsSet = 0.0009 + (w + lw) / (2 * Math.PI) + n;
+    const Jset = J2000 + dsSet + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    return { sunrise: fromJulian(Jnoon - (Jset - Jnoon)), sunset: fromJulian(Jset) };
+}
+// Moon phase from a fixed reference new moon (pure date math).
+function moonPhase(date) {
+    const synodic = 29.530588853;
+    const ref = Date.UTC(2000, 0, 6, 18, 14);
+    const p = ((((date.valueOf() - ref) / 86400000) % synodic) + synodic) % synodic / synodic;
+    const idx = Math.round(p * 8) % 8;
+    const names = ['New', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
+    return { name: names[idx], phase: p };
+}
+
+// A small two-tone moon disc: a shadowed body with the lit limb on the correct
+// side (N. hemisphere — waxing lit right, waning lit left). Legible at ~16px.
+function moonSVG(p) {
+    const R = 7, C = 8;
+    const cosA = Math.cos(2 * Math.PI * p);   // p0:+1 (new) · p.5:-1 (full)
+    const rx = R * Math.abs(cosA);
+    const waxing = p < 0.5;
+    const outerSweep = waxing ? 1 : 0;
+    const innerSweep = cosA < 0 ? outerSweep : (waxing ? 0 : 1);
+    const lit = `M${C},${C - R} A${R},${R} 0 0 ${outerSweep} ${C},${C + R} A${rx},${R} 0 0 ${innerSweep} ${C},${C - R} Z`;
+    return `<svg class="moon-glyph" viewBox="0 0 16 16" aria-hidden="true">`
+        + `<circle class="moon-disc" cx="${C}" cy="${C}" r="${R}"/>`
+        + `<path class="moon-lit" d="${lit}"/></svg>`;
+}
+
+function ledgerCell(dt, dd) { return `<div class="ledger-cell"><dt>${dt}</dt><dd>${dd}</dd></div>`; }
+
+// The hairline-ruled almanac ledger. Sun + moon are known immediately; live
+// conditions (Now / Normal high) are prepended async, only once they resolve.
+function renderLedger(office) {
+    const el = document.getElementById('ledger');
+    if (!el) return;
+    const tz = OFFICE_TIMEZONES[office] || 'America/Los_Angeles';
+    const cells = [];
+    const coords = OFFICE_COORDS[office];
+    if (coords) {
+        const s = sunTimes(coords[0], coords[1], new Date());
+        if (s) {
+            const fmt = d => d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+            const mins = Math.round((s.sunset - s.sunrise) / 60000);
+            cells.push(ledgerCell('Sunrise', fmt(s.sunrise)));
+            cells.push(ledgerCell('Sunset', fmt(s.sunset)));
+            if (mins > 0 && mins < 1440) cells.push(ledgerCell('Daylight', `${Math.floor(mins / 60)}h ${mins % 60}m`));
+        }
+    }
+    const m = moonPhase(new Date());
+    cells.push(ledgerCell('Moon', `${moonSVG(m.phase)} ${m.name}`));
+    el.innerHTML = cells.join('');
+}
+
 // ─── Fetch AFD ──────────────────────────────────────────────────────
 async function fetchAFD(office) {
     currentOffice = office;
+    viewingHistorical = false; // a fresh load is always the latest edition
+    delete document.documentElement.dataset.condition; // neutral sky until new conditions resolve
     const thisGen = ++fetchGeneration;
     const sectionsEl = document.getElementById('sections');
     sectionsEl.innerHTML = `
@@ -921,17 +1047,41 @@ async function renderAFD(prodData, office) {
     const tz = OFFICE_TIMEZONES[office] || 'America/Los_Angeles';
     const issueTime = new Date(prodData.issuanceTime);
     issueTimeDate = issueTime;
-    document.getElementById('issue-time').textContent =
-        `Issued ${issueTime.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: tz, timeZoneName: 'short' })} - ${timeAgo(issueTime)}`;
+    applySky(office);
 
-    // Parse sections
+    // Parse sections (also yields the forecaster signature, used for the byline)
     const { sections, forecaster } = parseSections(prodData.productText);
 
-    // Display forecaster name if available
-    if (forecaster) {
-        const issueEl = document.getElementById('issue-time');
-        issueEl.textContent += ` · by ${forecaster}`;
+    // ── Masthead: folio lines + a terse, authoritative dateline ──
+    const edition = editionName(localHour(issueTime, tz));
+    const cityEl = document.getElementById('dateline-city');
+    if (cityEl) cityEl.textContent = OFFICE_NAMES[office] || office;
+    const dlDate = document.getElementById('dateline-date');
+    if (dlDate) dlDate.textContent = 'Area Forecast Discussion';
+    const dlEd = document.getElementById('dateline-edition');
+    if (dlEd) dlEd.textContent = `${edition} Edition`;
+
+    const folioDate = document.getElementById('folio-date');
+    if (folioDate) folioDate.textContent =
+        issueTime.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz });
+    const folioOffice = document.getElementById('folio-office');
+    if (folioOffice) folioOffice.textContent = `NWS ${office}`;
+
+    // "Issued <time> · <ago>" lives in the lede meta line, beside confidence.
+    issuePrefix = `Issued ${issueTime.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz, timeZoneName: 'short' })}`;
+    document.getElementById('issue-time').textContent = `${issuePrefix} · ${timeAgo(issueTime)}`;
+
+    // Byline — the forecaster, in their own newsroom
+    const bylineEl = document.getElementById('byline');
+    if (bylineEl) {
+        const desk = OFFICE_SENDER[office] || OFFICE_NAMES[office] || office;
+        bylineEl.innerHTML = forecaster
+            ? `By <span class="byline-name">${escapeHTML(forecaster)}</span> · National Weather Service, ${escapeHTML(desk)}`
+            : `National Weather Service, ${escapeHTML(desk)}`;
     }
+
+    // Almanac ledger (sun + moon now; live conditions arrive async via afterRender)
+    renderLedger(office);
 
     if (sections.length === 0) {
         sectionsEl.innerHTML = '<div class="loading">Could not parse forecast sections.</div>';
@@ -1024,6 +1174,7 @@ function updateTitle(office) {
 
 function selectOffice(office, updateUrl) {
     officeSelect.value = office;
+    applySky(office); // instant sky change while the new forecast loads
     if (updateUrl !== false) {
         const url = new URL(window.location);
         url.searchParams.set('office', office);
@@ -1119,10 +1270,7 @@ if ('serviceWorker' in navigator) {
 setInterval(() => {
     if (!issueTimeDate) return;
     const el = document.getElementById('issue-time');
-    if (el) {
-        // Match " - <time ago>" but stop before " · by" if present
-        el.textContent = el.textContent.replace(/ - \d+[^·]*?((?= · )|$)/, ` - ${timeAgo(issueTimeDate)}$1`);
-    }
+    if (el && issuePrefix) el.textContent = `${issuePrefix} · ${timeAgo(issueTimeDate)}`;
 }, 60000);
 
 // ─── Share button ───────────────────────────────────────────────────
@@ -1165,37 +1313,27 @@ function startRefreshPolling() {
 }
 
 // Track current product ID for refresh detection (via afterRender callback)
-afterRender.push((prodData, office) => { lastProductId = prodData.id; });
+afterRender.push((prodData, office) => { if (viewingHistorical) return; lastProductId = prodData.id; });
 
 // Load history after each render (via afterRender callback)
 afterRender.push((prodData, office) => { fetchHistoryList(office).then(items => { historyList = items; renderHistorySelector(items, prodData.id); }); });
 
-// Seasonal context: show current conditions below key takeaway
+// Live conditions feed the almanac ledger + the atmosphere's condition tint
 afterRender.push(async (prodData, office) => {
     try {
         const res = await fetch(`/api/conditions?office=${office}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (!data.temp) return;
-
-        let contextText = `Current: ${data.temp}\u00B0F`;
-        if (data.delta !== null) {
-            const sign = data.delta > 0 ? '+' : '';
-            contextText += ` (${sign}${data.delta}\u00B0 vs ${new Date().toLocaleString('en-US', { month: 'long' })} avg)`;
-        }
-
-        // Insert into the forecast-meta strip
-        let container = document.getElementById('seasonal-context');
-        if (!container) {
-            container = document.createElement('span');
-            container.id = 'seasonal-context';
-            container.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;color:var(--text-muted)';
-            const metaInner = document.querySelector('.forecast-meta-inner');
-            if (metaInner) metaInner.prepend(container);
-        }
-        container.textContent = contextText;
+        if (office !== currentOffice) return; // user switched offices mid-fetch
+        if (data.condition) document.documentElement.dataset.condition = mapCondition(data.condition);
+        const ledger = document.getElementById('ledger');
+        if (!ledger || ledger.querySelector('.ledger-now')) return; // already prepended
+        let cells = '';
+        if (Number.isFinite(+data.temp)) cells += `<div class="ledger-cell ledger-now"><dt>Now</dt><dd>${+data.temp}°</dd></div>`;
+        if (Number.isFinite(+data.normal)) cells += ledgerCell('Normal high', `${+data.normal}°`);
+        if (cells) ledger.insertAdjacentHTML('afterbegin', cells);
     } catch (e) {
-        // Silent fail — no context line shown
+        // Silent — the ledger simply omits live conditions
     }
 });
 
@@ -1223,7 +1361,6 @@ function renderChangelog(text, since) {
         el.setAttribute('role', 'note');
         const takeaway = document.getElementById('takeaway-container');
         if (takeaway) takeaway.insertAdjacentElement('afterend', el);
-        else document.getElementById('forecast-meta')?.insertAdjacentElement('beforebegin', el);
     }
     el.innerHTML = `<span class="changelog-label">Since ${escapeHTML(sinceText(since))}</span> ${escapeHTML(text)}`;
     el.style.display = '';
@@ -1232,6 +1369,7 @@ function renderChangelog(text, since) {
 afterRender.push(async (prodData, office) => {
     const stale = document.getElementById('changelog-line');
     if (stale) stale.remove(); // clear the prior office's line while loading
+    if (viewingHistorical) return; // the "what changed" note belongs to the latest edition
     try {
         const res = await fetch(`/api/changelog?office=${office}`);
         if (!res.ok) return;
@@ -1244,6 +1382,7 @@ afterRender.push(async (prodData, office) => {
 // Forecast diff: compare current vs previous AFD
 afterRender.push((prodData, office, sections) => {
     if (!sections) return;
+    if (viewingHistorical) return; // don't diff or re-baseline against an archived edition
     const storageKey = `afd-${office}-previous-sections`;
     const safeId = (key) => key.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
@@ -1396,20 +1535,23 @@ async function fetchHistoryList(office) {
 }
 
 function renderHistorySelector(items, currentId) {
+    const slot = document.getElementById('editions-slot');
+    const line = document.getElementById('editions-line');
+    if (!slot) return;
+    if (line) line.style.display = items.length ? '' : 'none';
     let container = document.getElementById('history-selector');
     if (!container) {
-        container = document.createElement('div');
+        container = document.createElement('span');
         container.id = 'history-selector';
-        container.style.cssText = 'margin-left:auto';
-        const metaInner = document.querySelector('.forecast-meta-inner');
-        if (metaInner) metaInner.appendChild(container);
+        container.style.cssText = 'display:inline-flex;align-items:baseline';
+        slot.appendChild(container);
     }
     // Build select with DOM methods (no innerHTML for safety)
     container.textContent = '';
     const sel = document.createElement('select');
     sel.id = 'history-select';
     sel.setAttribute('aria-label', 'Forecast issuance time');
-    sel.style.cssText = 'font-family:var(--font-ui);font-size:0.75rem;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.4rem;background:var(--bg-surface);color:var(--text)';
+    sel.style.cssText = 'font-family:var(--font-ui);font-size:0.78rem;font-weight:500;border:none;border-bottom:1px solid var(--rule-strong);border-radius:0;padding:0.05rem 0.3rem 0.05rem 0.1rem;background:transparent;color:var(--text-secondary);cursor:pointer';
     const tz = OFFICE_TIMEZONES[currentOffice] || 'America/Los_Angeles';
     if (items.length === 0) {
         const opt = document.createElement('option');
@@ -1421,7 +1563,7 @@ function renderHistorySelector(items, currentId) {
             const opt = document.createElement('option');
             opt.value = item.id;
             const label = item.time.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', weekday: 'short', month: 'short', day: 'numeric', timeZone: tz, timeZoneName: 'short' });
-            opt.textContent = (i === 0 ? 'Latest: ' : '') + label + ' (' + timeAgo(item.time) + ')';
+            opt.textContent = i === 0 ? 'Latest edition' : `${label} (${timeAgo(item.time)})`;
             if (item.id === currentId) opt.selected = true;
             sel.appendChild(opt);
         });
@@ -1433,6 +1575,10 @@ function renderHistorySelector(items, currentId) {
             const res = await fetch(item.url, { headers: { 'User-Agent': 'Plaincast/1.0 (plaincast.live)' } });
             if (!res.ok) throw new Error('Fetch failed');
             const prodData = await res.json();
+            // Viewing an older edition: invalidate any in-flight AI writes and skip
+            // the diff/changelog. Selecting "Latest" (items[0]) re-enables them.
+            fetchGeneration++;
+            viewingHistorical = item.id !== items[0].id;
             renderAFD(prodData, currentOffice);
         } catch(e) { console.debug('History fetch failed', e); }
     });

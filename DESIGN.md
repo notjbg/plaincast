@@ -1,5 +1,30 @@
 # Design System — Plaincast
 
+> **CURRENT SYSTEM: "The Dispatch" (2026-06-11).** Plaincast is set as a *printed weather
+> almanac that happens to live on the web* — never a SaaS dashboard. The sections below
+> ("Product Context" onward) are the earlier editorial system and are SUPERSEDED where they
+> conflict with this block. North star: *a printed weather almanac on the web.* Anti-tells to
+> avoid: progress bars/meters, frosted-glass app bars, rounded shadowed cards, emoji icons,
+> gradient-mesh heroes, neon dark mode, everything centered, blue-because-weather.
+
+## The Dispatch — Layout & Components
+- **Broadsheet**: all content sits on one constant paper `.sheet` (max 1080px, soft shadow, ~3px radius) floating on the atmosphere; full-bleed under 820px.
+- **Masthead**: Fraunces nameplate (`opsz 144`, flanking-hairline folios bind date ⟷ nameplate ⟷ `NWS XXX`), italic WONK motto, **Scotch double-rule** (2px+1px ink), terse dateline `CITY · Area Forecast Discussion · {Edition}`.
+- **Almanac ledger** (`#ledger`): hairline-celled reference strip — Now · Normal high · Sunrise · Sunset · Daylight · Moon. Oldstyle figures, centered values, two-tone moon SVG. This is the "data-as-content" hero — keep it dense and typeset.
+- **Lede**: `.lede-kicker` (oxblood small-caps) → takeaway as a big Fraunces deck (centered) → rubricated 3-line drop cap on the first narrative section → byline (rule above) → `.lede-meta` (issued time + confidence) → "Since the X update" note.
+- **Two-column spread** (kept): warm-paper plain-English prose | **cool `--newsprint` facsimile** of the original AFD (JetBrains Mono, de-boxed, jargon underlines). They read as two stocks.
+- **Contents nav**: a printed running-head (solid paper, Scotch-rule borders, NO backdrop blur), sticky.
+- **Colophon** footer with `❧`, "Earlier editions" history control.
+
+## The Dispatch — Atmosphere (subtle, tasteful, reduced-motion-safe)
+- Fixed full-viewport sky behind the broadsheet. `data-phase` ∈ {dawn,morning,midday,golden,dusk,night} from the office's local time; `data-condition` from `/api/conditions` text. OKLCH palettes with `@property` 1.8s crossfade; chroma peaks at golden/dawn/dusk, near-neutral at midday/night. Light "night" stays light paper, just cooled. 96s transform-only glow drift + ≤0.04 feTurbulence grain — both disabled under `prefers-reduced-motion`. The reading card never moves, so contrast is invariant.
+
+## The Dispatch — Type & Color
+- Fonts: **Fraunces** display (axes `opsz`/`SOFT`/`WONK`; no small-caps, no oldstyle figures), **Source Serif 4** body (small-caps + oldstyle/lining-tabular numerals live here), **DM Sans** labels (uppercase, tracked), **JetBrains Mono** facsimile (ligatures off, lining-tabular). Prefer `font-variant-*` over `font-feature-settings`; always pin `opsz` when setting Fraunces `font-variation-settings`.
+- Drop cap: `initial-letter: 3 3` + float fallback, at `opsz 144`, oxblood.
+- Color (light): paper `#f7f3ea`, ink `#211d17`, accent (links) deep teal-ink `#0c5e54` (`--teal` is an alias JS inline styles depend on — keep), rubric oxblood `#8a2b18`, `--newsprint #eceae1`. Controls use `--control-line` (≥3:1). `--text-muted #6d6453` (5.3:1 — AA for small labels). Dark = warm charcoal broadsheet on deep-indigo sky.
+- Confidence is a plain **ink italic word** (the word carries the level), never a colored meter.
+
 ## Product Context
 - **What this is:** AI-powered translator for NWS Area Forecast Discussions — side-by-side plain English summaries with annotated originals
 - **Who it's for:** Weather-curious people who want the real forecast, from casual readers to weather enthusiasts
